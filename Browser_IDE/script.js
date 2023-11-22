@@ -1,5 +1,5 @@
 var editor = CodeMirror.fromTextArea(document.getElementById("editor"), {
-    mode: "text/x-c++src",
+    mode: "text/javascript",
     theme: "dracula",
     lineNumbers: true,
     autoCloseBrackets: true,
@@ -14,18 +14,13 @@ editor.setSize(0.7 * width, "500")
 var option = document.getElementById("inlineFormSelectPref")
 
 option.addEventListener("change", function () {
-    if (option.value == "Java") {
-        editor.setOption("mode", "text/x-java")
-    }
-    else if (option.value == "Cpp") {
-        editor.setOption("mode", "text/x-c++src")
-    }
-    else {
-        editor.setOption("mode", "text/x-python")
+    if (option.value == "Javascript") {
+        editor.setOption("mode", "text/javascript")
     }
 })
 
 // Sherap's work starts here
+// Modified by Sean
 var code;
 
 run.addEventListener("click", async function () {
@@ -35,7 +30,7 @@ run.addEventListener("click", async function () {
         lang: option.value
     }
     console.log(code)
-    var oData = await fetch("http://localhost:8000/compile", {
+    /*var oData = await fetch("http://localhost:8000/compile", {
         method: "POST",
         headers: {
             "Content-Type": "application/json"
@@ -44,7 +39,8 @@ run.addEventListener("click", async function () {
     })
     var d = await oData.json()
     output.value = d.output
-    console.log(d.output);
+    console.log(d.output);*/
+	eval(code.code);
 })
 // Sherap's work ends here
 
