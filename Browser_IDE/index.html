@@ -45,6 +45,7 @@
 open_window("test!",1280,720);
 clear_screen(rgba_color_from_double(1.0,1.0,1.0,0));
 refresh_screen();
+write_line("Initialized!");
 </textarea>
                 </div>
                 <div class="d-flex justify-content-between mb-2 bg-dark rounded p-2 ">
@@ -56,12 +57,23 @@ refresh_screen();
                 </div>
                 <div class="d-flex mb-2 bg-dark rounded p-2 flex-grow-1 flex-column">
                 <textarea type="text" id="editorMainLoop" class="form-control flex-grow-1" aria-label="editorMainLoop" style="height:100%;">
+process_events();
+
+if (key_down(A_KEY))
+	write_line("A key!");
+
+if (mouse_clicked(LEFT_BUTTON))
+	write_line("click!");
+
 clear_screen(rgba_color_from_double(1,1,1,1));
 fill_ellipse(rgba_color_from_double(0,1,0,1), 0, 400, 800, 400);
 fill_rectangle(rgba_color_from_double(0.4,0.4,0.4,1), 300, 300, 200, 200);
 fill_triangle(rgba_color_from_double(1,0,0,1), 250, 300, 400, 150, 550, 300);
+
+if (mouse_down(LEFT_BUTTON))
+	fill_ellipse(rgba_color_from_double(0.3,0.7,1,1), mouse_position().x-50, mouse_position().y-50, 100, 100);
+
 refresh_screen();
-write_line("Test!");
 </textarea>
                 </div>
                 <div class="d-flex flex-column column m-3 justify-content-center" style="color:white;height:16em;vertical-align:position:relative;">
