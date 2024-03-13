@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C++ to JavaScript Converter Utility</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-Zenh87qX5JnK2Jl0vWa8Ck2rdkQ2Bzep5IDxbcnCeuOxjzrPF/et3URy9Bv1WTRi" crossorigin="anonymous">
+    <link rel="stylesheet" href="../codemirror-5.65.15/lib/codemirror.css">
+    <link rel="stylesheet" href="../codemirror-5.65.15/theme/dracula.css">
+    <link rel="stylesheet" href="../codemirror-5.65.15/addon/hint/show-hint.css">
+    <link rel="stylesheet" href="../codemirror-5.65.15/addon/fold/foldgutter.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="../stylesheet.css">
+
+    <script src="../codemirror-5.65.15/lib/codemirror.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-OERcA2EqjJCMA+/3y+gxIOqMEjwtxJY7qPCqsdltbNJuaOe923+mo//f6V8Qbsw3"
+        crossorigin="anonymous"></script>
+    <script src="../codemirror-5.65.15/mode/clike/clike.js"></script>
+    <script src="../codemirror-5.65.15/mode/javascript/javascript.js"></script>
+    <script src="../codemirror-5.65.15/addon/edit/closebrackets.js"></script>
+    <script src="../codemirror-5.65.15/addon/selection/active-line.js"></script>
+    <script src="../codemirror-5.65.15/addon/hint/show-hint.js"></script>
+    <script src="../codemirror-5.65.15/addon/fold/foldcode.js"></script>
+    <script src="../codemirror-5.65.15/addon/fold/foldgutter.js"></script>
+    <script src="../codemirror-5.65.15/addon/fold/brace-fold.js"></script>
+    <script src="../codemirror-5.65.15/addon/fold/comment-fold.js"></script>
+
+	<style>
+      .CodeMirror {
+        height: 100%;
+      }
+    </style>
+</head>
+
+<body class="bg-dark" style="position:relative;width:100%;height:100vh;margin:0;padding:0;display:flex;">
+    <div class="flex-column d-flex flex-grow-1" style="width: 100%;">
+        <div class="flex-row d-flex p-3 justify-content-center" style="color:white;background-color:#3F51B5; vertical-align:middle;align-items:center;">
+            <h1>C++ to JavaScript Converter Utility</h1>
+        </div>
+        <div class="flex-row d-flex m-3 flex-grow-1 justify-content-center">
+            <div class="d-flex flex-column " style="width:50%; height:100%;">
+                <div class="d-flex justify-content-between mb-2 bg-dark rounded p-2">
+                    <div class="flex-column">
+                        <h3 style="color:white;"> C++ Input </h3>
+                    </div>
+                </div>
+                <div class="d-flex mb-2 bg-dark rounded p-2 flex-grow-1 flex-column">
+                    <textarea type="text" id="CPPEditor" class="form-control flex-grow-1" aria-label="CPPEditor" style="height:100%;max-width:50%;"></textarea>
+                </div>
+			</div>
+            <div class="d-flex flex-column " style="width:50%; ">
+                <div class="d-flex justify-content-between mb-2 bg-dark rounded p-2 " >
+                    <div class="flex-column"><h3 style="color:white;"> JavaScript Output</h3></div>
+                </div>
+                <div class="d-flex mb-2 bg-dark rounded p-2 flex-grow-1 flex-column">
+                <textarea readonly type="text" id="JSEditor" class="form-control flex-grow-1" aria-label="JSEditor" style="height:100%;max-width:50%;"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+<script src="cpp_to_js.js"></script>
+
+<script>
+	"use strict";
+
+	function setupCodeArea(element, language){
+		let editor = CodeMirror.fromTextArea(element, {
+			mode: "text/"+language,
+			theme: "dracula",
+			lineNumbers: true,
+			autoCloseBrackets: true,
+			styleActiveLine: true,
+			foldGutter: true,
+			gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]
+		});
+		return editor;
+	}
+	let CPPEditor = setupCodeArea(document.getElementById("CPPEditor"),"x-c++src");
+	let JSEditor = setupCodeArea(document.getElementById("JSEditor"),"javascript");
+	CPPEditor.setValue(localStorage.getItem("CPPEditor")??"");
+
+	function updateJSResult(){
+		JSEditor.setValue(cpp_to_js(CPPEditor.getValue()));
+	}
+
+	CPPEditor.on('change', (cm, change) => {
+		localStorage.setItem("CPPEditor", CPPEditor.getValue());
+		updateJSResult();
+	});
+
+	updateJSResult();
+</script>
+</html>
