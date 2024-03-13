@@ -5,9 +5,6 @@ let progressElement = document.getElementById('progress');
 let spinnerElement = document.getElementById('spinner');
 
 let moduleEvents = new EventTarget();
-moduleEvents.addEventListener("onRuntimeInitialized", function() {
-    initializeGlobalSplashKitScope();
-});
 
 var Module = {
     onRuntimeInitialized: (function() {
