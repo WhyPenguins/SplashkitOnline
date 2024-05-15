@@ -120,20 +120,59 @@ for (let i = 0; i < tabElems.length; i++) {
 
 SwitchToTabs(tabs[0].contents.id);
 
-// ------ Setup Project and Execution Environment ------
-
-if (SplashKitOnlineLanguageDefinitions[SKO.language] == undefined) {
-    displayEditorNotification("Unable to switch to language "+SKO.language+", defaulting to JavaScript.", NotificationIcons.ERROR);
-    SKO.language = "JavaScript";
+// setup language selection box
+let languageSelectElem = document.getElementById("languageSelection");
+for (let i = 0; i < SplashKitOnlineLanguageDefinitions.length; i++) {
+    let language = SplashKitOnlineLanguageDefinitions[i];
+    languageSelectElem.append(elem("option", {value: language.name}, [language.userVisibleName]));
 }
 
-let currentLanguage = SplashKitOnlineLanguageDefinitions[SKO.language].setups[0];
-initializeLanguageCompilerFiles(currentLanguage);
+// switch active language
+// currently just reloads the page with the 'language' parameter set
+// in the future, ideally this will work _without_ reloading the page,
+// by unloading the existing language scripts then loading the new ones
+function switchActiveLanguage(language){
+     let page_url = new URL(window.location.href);
+     page_url.searchParams.set('language', language.replaceAll("+"," ") /* spaces become + in url */);
+     window.location = page_url;
+}
 
-let executionEnviroment = new ExecutionEnvironment(document.getElementById("ExecutionEnvironment"), currentLanguage);
-let storedProject = new IDBStoredProject(currentLanguage.getDefaultProject());
+languageSelectElem.addEventListener('change', function(event) {
+    // just switch active language
+    // TODO: store chosen language inside project
+    switchActiveLanguage(event.target.value);
+})
+
+// ------ Setup Project and Execution Environment ------
+
+// decide which language to use
+let activeLanguage = null;
+let activeLanguageSetup = null;
+if (SKO.language in SplashKitOnlineLanguageAliasMap) {
+    activeLanguage = SplashKitOnlineLanguageAliasMap[SKO.language];
+} else {
+    activeLanguage = SplashKitOnlineLanguageAliasMap["JavaScript"];
+
+    displayEditorNotification("Unable to switch to language "+SKO.language+", defaulting to JavaScript.", NotificationIcons.ERROR, -1);
+    displayEditorNotification("Available languages are: <br/><ul>"+
+        SplashKitOnlineLanguageDefinitions.map(val => `<li>${val.userVisibleName}</li>`).join("")+
+        "</ul>", NotificationIcons.ERROR, -1
+    );
+}
+activeLanguageSetup = activeLanguage.setups[0];
+
+languageSelectElem.value = activeLanguage.name;
+
+// initialize language
+initializeLanguageCompilerFiles(activeLanguageSetup);
+
+// initialize execution environment and project storage objects
+let executionEnviroment = new ExecutionEnvironment(document.getElementById("ExecutionEnvironment"), activeLanguageSetup);
+let appStorage = new AppStorage();
+appStorage.attach();
+let storedProject = new IDBStoredProject(appStorage, activeLanguageSetup.getDefaultProject());
 let unifiedFS = new UnifiedFS(storedProject, executionEnviroment);
-storedProject.attachToProject("Untitled");
+storedProject.attachToProject();
 
 let haveMirrored = false;
 let canMirror = false;
@@ -147,20 +186,26 @@ async function newProject(){
 
     prepareIDEForLoading();
 
+    let projectID = storedProject.projectID;
+
     disableCodeExecution();
     storedProject.detachFromProject();
     canMirror = false;
     await executionEnviroment.resetEnvironment();
-    await storedProject.deleteProject("Untitled");
+    await storedProject.deleteProject(projectID);
     haveMirrored = false;
-    await storedProject.attachToProject("Untitled");
+    await storedProject.attachToProject(projectID);
+
+    await storedProject.access(async (project) => {
+        await project.renameProject("New Project");
+    });
 
     makingNewProject = false;
 }
 
 function prepareIDEForLoading(){
     let waitForCompilerReady = new Promise((resolve) => {
-        if (getCompiler(currentLanguage.compilerCommand))
+        if (getCompiler(activeLanguageSetup.compilerName))
             resolve();
         registeredCompilersEvents.addEventListener("compilerReady", () => {
             resolve();
@@ -183,12 +228,17 @@ function prepareIDEForLoading(){
     });
 
     let waitForMirrorCompletion = new Promise((resolve) => {
-        if (!currentLanguage.persistentFilesystem){
+        if (!activeLanguageSetup.persistentFilesystem){
             resolve();
             return;
         }
         Promise.all([waitForInitialize, waitForProjectAttach]).then(async function() {
-            await MirrorToExecutionEnvironment();
+            if (!haveMirrored && canMirror){
+                displayEditorNotification("Loading project files.", NotificationIcons.INFO);
+
+                haveMirrored = true;
+                await MirrorToExecutionEnvironment();
+            }
             resolve();
         });
     });
@@ -221,29 +271,28 @@ executionEnviroment.addEventListener("onCriticalInitializationFail", function(da
 
 async function MirrorToExecutionEnvironment(){
     try {
-        if (!haveMirrored && canMirror){
-            displayEditorNotification("Loading project files.", NotificationIcons.INFO);
+        let tree = await storedProject.access((project)=>project.getFileTree());
 
-            haveMirrored = true;
-            let tree = await storedProject.access((project)=>project.getFileTree());
+        let promises = []
 
-            async function mirror(tree, path){
-                let dirs_files = tree;
+        async function mirror(tree, path){
+            let dirs_files = tree;
 
-                for(let node of dirs_files){
-                    let abs_path = path+""+node.label;
-                    if (node.children != null){
-                        executionEnviroment.mkdir(abs_path);
-                        mirror(node.children, abs_path+"/");
-                    }
-                    else{
-                        executionEnviroment.writeFile(abs_path, await storedProject.access((project)=>project.readFile(abs_path)));
-                    }
+            for(let node of dirs_files){
+                let abs_path = path+""+node.label;
+                if (node.children != null){
+                    promises.push(executionEnviroment.mkdir(abs_path));
+                    promises.push(mirror(node.children, abs_path+"/"));
+                }
+                else{
+                    promises.push(executionEnviroment.writeFile(abs_path, await storedProject.access((project)=>project.readFile(abs_path))));
                 }
             }
-
-            await mirror(tree, "/");
         }
+
+        await mirror(tree, "/");
+
+        await Promise.all(promises);
     } catch(err){
         let errEv = new Event("filesystemError");
         errEv.shortMessage = "Internal error";
@@ -253,6 +302,17 @@ async function MirrorToExecutionEnvironment(){
     }
 }
 
+executionEnviroment.addEventListener("mirrorRequest", async function(e){
+    try {
+        displayEditorNotification("Loading project files...", NotificationIcons.INFO);
+        await MirrorToExecutionEnvironment();
+        e.resolve();
+    }
+    catch(err) {
+        e.reject(err);
+    }
+});
+
 
 
 // ------ Code Execution + Saving ------
@@ -260,11 +320,11 @@ async function MirrorToExecutionEnvironment(){
 // There is currently a lot of repetition (for instance, runInitialization/runMainLoop, saveInitialization/saveMainLoop, etc)
 
 // temporary hack until the above actually gets done...
-if (currentLanguage.name.includes("C++")) {
+if (activeLanguageSetup.name.includes("C++")) {
     document.getElementById("codeViewTabs").children[0].innerText = "GeneralCode.cpp";
     document.getElementById("codeViewTabs").children[1].innerText = "MainCode.cpp";
 }
-if (!currentLanguage.supportHotReloading) {
+if (!activeLanguageSetup.supportHotReloading) {
     document.getElementById("runOne").children[0].innerText = "Syntax Check File";
 }
 
@@ -298,7 +358,7 @@ async function runFile(name, code) {
         clearErrorLines();
 
         let message = `Preparing ${name}...`;
-        if (currentLanguage.compiled)
+        if (activeLanguageSetup.compiled)
             message = `Compiling ${name}...`
         displayEditorNotification(message, NotificationIcons.CONSTRUCTION);
 
@@ -349,14 +409,14 @@ async function syntaxCheckFile(name, code) {
 
 // Functions to run the code blocks
 function runInitialization(){
-    if (currentLanguage.supportHotReloading)
+    if (activeLanguageSetup.supportHotReloading)
         runFile("GeneralCode", editorInit.getValue());
     else
         syntaxCheckFile("GeneralCode", editorInit.getValue());
 }
 
 function runMainLoop(){
-    if (currentLanguage.supportHotReloading)
+    if (activeLanguageSetup.supportHotReloading)
         runFile("MainCode", editorMainLoop.getValue());
     else
         syntaxCheckFile("MainCode", editorMainLoop.getValue());
@@ -438,7 +498,7 @@ function asyncSleep(time=0) {
 }
 
 function getCurrentCompiler() {
-    let currentCompiler = getCompiler(currentLanguage.compilerCommand);
+    let currentCompiler = getCompiler(activeLanguageSetup.compilerName);
 
     if (currentCompiler == null)
         displayEditorNotification("Failed to start compiler! Maybe it hasn't loaded yet, try again in a bit!", NotificationIcons.ERROR);
@@ -451,7 +511,7 @@ async function runProgram(){
     try {
         clearErrorLines();
 
-        displayEditorNotification(currentLanguage.compiled ? "Compiling project..." : "Building project...", NotificationIcons.CONSTRUCTION);
+        displayEditorNotification(activeLanguageSetup.compiled ? "Compiling project..." : "Building project...", NotificationIcons.CONSTRUCTION);
 
         // give the notification a chance to show
         await asyncSleep();
@@ -601,6 +661,8 @@ async function fileAsString(buffer){
 
 // ------ Project Zipping/Unzipping Functions ------
 async function projectFromZip(file){
+    let promises = [];
+
     try {
         await JSZip.loadAsync(file)
         .then(async function(zip) {
@@ -609,14 +671,16 @@ async function projectFromZip(file){
                 if (zipEntry.dir){
                     abs_path = abs_path.substring(0, abs_path.length-1);
 
-                    await unifiedFS.mkdir(abs_path);
+                    promises.push(unifiedFS.mkdir(abs_path));
                 }
                 else{
                     let uint8_view = await zip.file(rel_path).async("uint8array");
-                    await unifiedFS.writeFile(abs_path, uint8_view);
+                    promises.push(unifiedFS.writeFile(abs_path, uint8_view));
                 }
             });
         });
+
+        await Promise.all(promises);
     } catch(err){
         let errEv = new Event("filesystemError");
         errEv.shortMessage = "Import failed";

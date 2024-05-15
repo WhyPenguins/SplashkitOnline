@@ -10,9 +10,11 @@
 // The compilers are instantiated in the main page,
 // should inherit from Compiler, and need to register themselves to be used
 
-let SplashKitOnlineLanguageDefinitions = {
-    "JavaScript": {
+let SplashKitOnlineLanguageDefinitions = [
+    {
         name: "JavaScript",
+        userVisibleName: "JavaScript",
+        aliases: ['JS'],
         setups: [{
             name: "JavaScript Native",
             runtimeFiles: [
@@ -31,7 +33,7 @@ let SplashKitOnlineLanguageDefinitions = {
             compilerFiles: [
                 "compilers/javascript/javascriptCompiler.js",
             ],
-            compilerCommand: "JavaScript Patch",
+            compilerName: "javascriptPatcher",
             supportHotReloading: true,
             getDefaultProject: ()=>{return makeNewProject_JavaScript;},
             persistentFilesystem: true,
@@ -39,11 +41,14 @@ let SplashKitOnlineLanguageDefinitions = {
             needsSandbox: true,
         }]
     },
-    "C++": {
+    {
         name: "C++",
+        userVisibleName: "C++ (Experimental)",
+        aliases: ['CXX','C'],
         setups: [{
             name: "C++ (Clang)",
             runtimeFiles: [
+                "fallibleMessage.js",
                 "runtimes/ExecutionEnvironmentInternal.js",
                 "runtimes/cxx/cxxRuntime.js",
                 "runtimes/cxx/bin/SplashKitBackendWASMCPP.js",
@@ -56,7 +61,7 @@ let SplashKitOnlineLanguageDefinitions = {
             compilerFiles: [
                 "compilers/cxx/cxxCompiler.js",
             ],
-            compilerCommand: "C++ Clang Compile",
+            compilerName: "cxxCompiler",
             supportHotReloading: false,
             getDefaultProject: ()=>{return makeNewProject_CXX;},
             persistentFilesystem: false,
@@ -64,9 +69,24 @@ let SplashKitOnlineLanguageDefinitions = {
             needsSandbox: false,
         }]
     }
-};
+];
 
-// Some synonyms to make development easier
-SplashKitOnlineLanguageDefinitions["CXX"] = SplashKitOnlineLanguageDefinitions["C++"];
-SplashKitOnlineLanguageDefinitions["C"] = SplashKitOnlineLanguageDefinitions["C++"];
-SplashKitOnlineLanguageDefinitions["JS"] = SplashKitOnlineLanguageDefinitions["JavaScript"];
+function makeAliasMap(languages){
+    let aliasMap = {};
+
+    for (let i = 0; i < languages.length; i ++) {
+        let language = languages[i];
+
+        aliasMap[language.name] = language;
+        aliasMap[language.userVisibleName] = language;
+
+        for (let i = 0; i < language.aliases.length; i ++) {
+            aliasMap[language.aliases[i]] = language;
+        }
+    }
+
+    return aliasMap;
+}
+
+let SplashKitOnlineLanguageAliasMap = makeAliasMap(SplashKitOnlineLanguageDefinitions);
+

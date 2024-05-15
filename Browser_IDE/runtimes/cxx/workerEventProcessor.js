@@ -1,6 +1,9 @@
 minimumEventsCheckInterval = 0; // set to 0, so we always fetch user events.
 let nextEventsCheckTime = 0;
 
+// disable keepAlive system until we receive first keepAlive signal
+let lastKeepAlive = -1;
+
 let terminated = false;
 
 function postCustomMessage(data) {
@@ -16,8 +19,58 @@ function handleEvent([event, args]){
             postCustomMessage({
                 type: "ProgramPaused"
             });
-            pauseLoop();
+            pauseLoop('continue');
             break;
+        case "keepAlive":
+            lastKeepAlive = performance.now();
+            break;
+
+        // TODO: de-duplicate this code and the code in executionEnvironment_Internal.js
+        case "mkdir":
+            FS.mkdir(args.path);
+            break;
+        case "writeFile":
+            if (typeof args.data == 'string')
+                FS.writeFile(args.path, args.data);
+            else
+                FS.writeFile(args.path, new Uint8Array(args.data));
+            break;
+        case "rename":
+            FS.rename(args.oldPath,args.newPath);
+            break;
+        case "unlink":
+            FS.unlink(args.path);
+            break;
+        case "rmdir":
+            if(args.recursive){
+                let deleteContentsRecursive = function(p){
+                    let entries = FS.readdir(p);
+                    for(let entry of entries){
+                        if(entry == "." || entry == "..")
+                            continue;
+                        // All directories contain a reference to themself
+                        // and to their parent directory. Ignore them.
+
+                        let entryPath = p + "/" + entry;
+                        let entryStat = FS.stat(entryPath, false);
+
+                        if(FS.isDir(entryStat.mode)){
+                            deleteContentsRecursive(entryPath);
+                            FS.rmdir(entryPath);
+                        } else if(FS.isFile(entryStat.mode)){
+                            FS.unlink(entryPath);
+                        }
+
+                    }
+                }
+                deleteContentsRecursive(args.path);
+                FS.rmdir(args.path);
+                // FS.rmdir expects the directory to be empty
+                // and will throw an error if it is not.
+            } else {
+                FS.rmdir(args.path);
+            }
+
         case "EmEvent":
             switch (args.target) {
                 case 'document': {
@@ -41,12 +94,12 @@ function handleEvent([event, args]){
 
             break;
         default:
-            throw new Error("Unexpected event in workerEventProcessor.js: ", event);
+            throw new Error("Unexpected event in workerEventProcessor.js: " + JSON.stringify(event));
     }
 }
 
 var httpRequest = new XMLHttpRequest();
-let skipNextCommands = true;
+let skipNextCommands = false;
 
 // fetch the latest events
 function fetchEvents() {
@@ -73,6 +126,7 @@ function __sko_process_events(){
         return;
 
     let now = performance.now();
+
     if (now >= nextEventsCheckTime){
         nextEventsCheckTime = now + minimumEventsCheckInterval;
 
@@ -89,15 +143,20 @@ function __sko_process_events(){
         skipNextCommands = false;
     }
 
+    // if keep alive is active and it's been a while since we got a signal...
+    if (lastKeepAlive > 0 && lastKeepAlive + 1000 < now) {
+        pauseLoop('keepAlive', false);
+    }
 }
 
 // a busy loop for when paused
-function pauseLoop() {
+function pauseLoop(waitOn, reportContinue=true) {
     let paused = true;
     while (paused) {
         let programEvents = fetchEvents();
         for (let i = 0; i < programEvents.length; i ++) {
-            if (programEvents[i][0] == 'continue') {
+            if (programEvents[i][0] == waitOn) {
+                lastKeepAlive = performance.now();
                 paused = false;
             }
         }
@@ -105,10 +164,47 @@ function pauseLoop() {
         // making the service worker delay its
         // response a bit when paused.
     }
-    postCustomMessage({
-        type: "ProgramContinued"
-    });
+
+    if (reportContinue)
+        postCustomMessage({
+            type: "ProgramContinued"
+        });
 }
+
+// FS Event Forwarding
+function postFSEvent(data){
+    postCustomMessage({type:"FS", message:data});
+}
+
+// TODO: de-duplicate this code and the code in executionEnvironment_Internal.js
+moduleEvents.addEventListener("onRuntimeInitialized", function() {
+    // Attach to file system callbacks
+    FSEvents.addEventListener('onMovePath', function(e) {
+        postFSEvent({type: "onMovePath", oldPath: e.oldPath, newPath: e.newPath});
+    });
+    FSEvents.addEventListener('onMakeDirectory', function(e) {
+        postFSEvent({type: "onMakeDirectory", path: e.path});
+    });
+    FSEvents.addEventListener('onDeletePath', function(e) {
+        postFSEvent({type: "onDeletePath", path: e.path});
+    });
+    FSEvents.addEventListener('onOpenFile', function(e) {
+        if ((e.flags & 64)==0)
+            return;
+
+        postFSEvent({type: "onOpenFile", path: e.path});
+    });
+});
+
+Module['onRuntimeInitialized'] = (function() {
+    moduleEvents.dispatchEvent(new Event("onRuntimeInitialized"));
+});
+
+// ensure we're up to date on events before runnning.
+// this way, even if the user's program never calls
+// process_events(), we'll still have processed all the
+// file commands at least.
+Module['preRun'] = __sko_process_events;
 
 // setup user program exit event
 Module['noExitRuntime'] = false;
@@ -117,8 +213,3 @@ Module['onExit'] = function() {
         type: "ProgramEnded"
     });
 }
-
-// Clear event buffer
-// Skip first set of commands, they may be old data
-skipNextCommands = true;
-__sko_process_events();
