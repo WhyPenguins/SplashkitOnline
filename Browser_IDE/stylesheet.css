@@ -53,6 +53,33 @@ button:hover {
     background-color: #404040;
 }
 
+select {
+    -webkit-appearance: button;
+    -moz-appearance: button;
+
+    margin: 0px 3px;
+    border-radius: 3px;
+    border: 0px black solid;
+    background-color: transparent;
+    color: inherit;
+    cursor: pointer;
+    outline:none;
+    line-height: 1em;
+}
+
+select:disabled {
+    color: #AAA;
+}
+
+select:hover {
+    background-color: #303030;
+}
+
+
+a:visited {
+    color: #0A0;
+}
+
 .sk-body {
     position: relative;
     box-sizing: border-box;
@@ -171,6 +198,45 @@ textarea {
 }
 
 
+.sk-notification-area {
+    position: absolute;
+    right: 3em;
+    left: 3em;
+    bottom: 3em;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.sk-notification-body {
+    margin: 0px 5em 0px 1.5em;
+    flex-grow: 1;
+}
+
+.sk-notification {
+    box-shadow: rgba(0,0,0,0.7) 4px 4px 10px 0px;
+    padding: 1em;
+    display: flex;
+    flex-direction: row;
+    width: 30em;
+    max-width: 100%;
+    margin-top: 1em;
+    transition: opacity 0.4s;
+    opacity: 1;
+    margin-left: auto;
+    pointer-events: all;
+}
+
+.sk-terminal {
+    overflow-y: scroll;
+    height:200px;
+    border:0;
+    padding-left:1em;
+    resize: none;
+    font-family:monospace, serif;
+    white-space: pre-wrap;
+    background-color: #161616;
+}
+
 
 .node{
     color:#f8f8f2;
@@ -211,7 +277,22 @@ textarea {
     color: #9fff69;
     opacity: 1.0;
 }
-
+.node-tentative-label{
+	margin: 0px 6px 0px 6px;
+}
+.node-conflict{
+	width:100%;
+	display:flex;
+    flex-direction: row !important;
+	padding: 0px 20px 0px 0px;
+	margin-left: 6px;
+	color: lightcoral;
+}
+.node-conflict-text{
+	flex: 1;
+	padding: 0px 0px 0px 3px;
+	text-wrap: nowrap;
+}
 
 .directory-contents{
     padding:00px 0px 0px 30px;
@@ -473,3 +554,24 @@ li.CodeMirror-hint-active {
   flex: 1 1 auto;
   padding: var(--bs-modal-padding);
 }
+
+#output > div:first-child {
+    display: none;
+}
+
+.sk-term-fmt-code1 {font-weight: bold;}
+.sk-term-fmt-code3 {font-style: italic;}
+.sk-term-fmt-code4 {text-decoration: underline;}
+.sk-term-fmt-code9 {text-decoration: line-through;}
+.sk-term-fmt-code21, .sk-term-fmt-code22 {font-weight: normal;}
+.sk-term-fmt-code23 {font-style: normal;}
+.sk-term-fmt-code24, .sk-term-fmt-code29 {text-decoration: none;}
+
+.sk-term-fmt-code30, .sk-term-fmt-code90 {color: black;}
+.sk-term-fmt-code31, .sk-term-fmt-code91 {color: red;}
+.sk-term-fmt-code32, .sk-term-fmt-code92 {color: lime;}
+.sk-term-fmt-code33, .sk-term-fmt-code93 {color: yellow;}
+.sk-term-fmt-code34, .sk-term-fmt-code94 {color: blue;}
+.sk-term-fmt-code35, .sk-term-fmt-code95 {color: magenta;}
+.sk-term-fmt-code36, .sk-term-fmt-code96 {color: cyan;}
+.sk-term-fmt-code37, .sk-term-fmt-code97 {color: white;}

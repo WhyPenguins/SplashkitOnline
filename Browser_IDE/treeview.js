@@ -60,10 +60,26 @@ document.addEventListener("mouseup", function(e) {
         ev.oldPath = oldPath;
         ev.newPath = newPath.path;
         ev.FS = boundTree.nodeGetFS(boundNode);
-        ev.accept = function(){
-            boundNode.remove();
-            boundTree.moveNodeToPathUI(boundNode, newPath.path, newPath.index);
+
+        ev.onsuccess = () => {
+            // TODO: Move moveNodeToPathUI call here.
+            // It currently expects to run *before* the FS node is renamed,
+            // and so it cannot check whether the rename succeeded.
         };
+        ev.onerror = (err) => {
+            let errEv = new Event("filesystemError");
+            errEv.shortMessage = "Move failed";
+            errEv.longMessage = "An error occured and the file/directory could not be moved to its new location.\n\nReason:\n" + err;
+            window.dispatchEvent(errEv);
+
+            boundTree.moveNodeToPathUI(boundNode, oldPath, 0);
+
+            throw err;
+        };
+        
+        boundNode.remove();
+        boundTree.moveNodeToPathUI(boundNode, newPath.path, newPath.index);
+
         activeTree.dispatchEvent(ev);
 
 
@@ -100,7 +116,7 @@ class TreeView extends EventTarget{
 
     // Public Facing Methods
     // note: None of these manual changes to the tree call any callbacks - this stops any recursion happening
-    moveNode(oldPath, newPath, index = -1, FS){
+    moveNode(oldPath, newPath, FS){
         let treeView = this;
         if (oldPath == newPath)
             return;
@@ -322,6 +338,94 @@ class TreeView extends EventTarget{
         });
     }
 
+    /** 
+     * Represents a directory which is still yet to be named by the user and created.
+     * There should only exist one at a time.
+     * */
+    makeTentativeDirectoryNode(){
+        let tentative_dir_node = document.createElement("div");
+        tentative_dir_node.classList.add("node", "directory");
+
+        let tentative_dir_node_label = document.createElement("div");
+        tentative_dir_node_label.classList.add("node-label", "bi-folder2-open");
+
+        let tentative_dir_node_text_area = document.createElement("input");
+        tentative_dir_node_text_area.type = "text";
+        tentative_dir_node_text_area.classList.add("node-tentative-label", "sk-input");
+        tentative_dir_node_text_area.placeholder = "";
+        tentative_dir_node_text_area.size = 5;
+
+        let tentative_dir_node_conflict = document.createElement("div");
+        tentative_dir_node_conflict.classList.add("node-conflict", "bi-exclamation-octagon");
+        tentative_dir_node_conflict.style.display = "none";
+
+        let tentative_dir_node_conflict_text = document.createElement("div");
+        tentative_dir_node_conflict_text.classList.add("node-conflict-text");
+        tentative_dir_node_conflict_text.innerHTML = "Name conflict";
+
+        tentative_dir_node_conflict.appendChild(tentative_dir_node_conflict_text);
+        tentative_dir_node_label.appendChild(tentative_dir_node_text_area);
+        tentative_dir_node_label.appendChild(tentative_dir_node_conflict);
+        tentative_dir_node.appendChild(tentative_dir_node_label);
+
+        tentative_dir_node_text_area.addEventListener("focusout", async (e) => {
+            tentative_dir_node.remove();
+        });
+
+        let boundTree = this;
+
+        tentative_dir_node_text_area.addEventListener("input", async (e) => {
+            tentative_dir_node_text_area.size = Math.max(5, tentative_dir_node_text_area.value.length);
+        });
+
+        tentative_dir_node_text_area.addEventListener("keyup", async (e) => {
+            let newDirPath = boundTree.getFullPath(tentative_dir_node.parentElement.parentElement) + "/" + tentative_dir_node_text_area.value;
+            let existingNode = boundTree.getNodeFromPath(newDirPath);
+
+            if(existingNode != null){
+                tentative_dir_node_conflict.style.display = "inherit";
+            } else {
+                tentative_dir_node_conflict.style.display = "none";
+            }
+        });
+
+        tentative_dir_node_text_area.addEventListener("keydown", async (e) => {
+            if(e.key == "Escape"){
+                tentative_dir_node_text_area.blur();
+                return;
+            }
+
+            if(e.key == "Enter"){
+                e.preventDefault();
+
+                let newDirPath = boundTree.getFullPath(tentative_dir_node.parentElement.parentElement) + "/" + tentative_dir_node_text_area.value;
+                let existingNode = boundTree.getNodeFromPath(newDirPath);
+                if(existingNode != null) return;
+
+                let ev = new Event("folderCreateRequest");
+                ev.treeView = boundTree;
+                ev.path = newDirPath;
+                ev.FS = boundTree.nodeGetFS(tentative_dir_node.parentElement.parentElement);
+                ev.onerror = (err) => {
+                    let errEv = new Event("filesystemError");
+                    errEv.shortMessage = "Folder creation failed";
+                    errEv.longMessage = "An error occured and the folder could not be created.\n\nReason:\n" + err;
+                    window.dispatchEvent(errEv);
+                };
+                boundTree.dispatchEvent(ev);
+
+                tentative_dir_node_text_area.blur(); // unfocus to remove
+            }
+        });
+
+        tentative_dir_node.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+        });
+
+        return tentative_dir_node;
+    }
+
     makeDirectoryNode(label){
         let dir_node = document.createElement("div");
         dir_node.classList.add("node");
@@ -335,7 +439,19 @@ class TreeView extends EventTarget{
         dir_node_label_text_div.classList.add("node-label-text");
 
         let dir_node_upload_file_button = document.createElement("button");
-        dir_node_upload_file_button.classList.add("bi-plus-circle", "node-button");
+        dir_node_upload_file_button.classList.add("bi-file-earmark-arrow-up", "node-button");
+
+        // The root directory should not be deleteable.
+        // Seems hack-y. Is "" a valid file/dir name?
+        // Maybe it would be better for the caller to just remove the button afterwards. 
+        let dir_node_delete_button = undefined;
+        if(label != ""){
+            dir_node_delete_button = document.createElement("button");
+            dir_node_delete_button.classList.add("bi-trash", "node-button");
+        }
+
+        let dir_node_add_folder_button = document.createElement("button");
+        dir_node_add_folder_button.classList.add("bi-folder-plus", "node-button");
 
         let dir_node_label_text = document.createTextNode(label==""?"/":label);
 
@@ -346,6 +462,12 @@ class TreeView extends EventTarget{
         dir_node_label_text_div.appendChild(dir_node_label_text);
         dir_node_label.appendChild(dir_node_label_text_div);
         dir_node_label.appendChild(dir_node_upload_file_button);
+        dir_node_label.appendChild(dir_node_add_folder_button);
+
+        if(label != ""){
+            dir_node_label.appendChild(dir_node_delete_button);
+        }
+
         dir_node.appendChild(dir_node_label);
         dir_node.appendChild(dir_node_contents);
 
@@ -389,6 +511,37 @@ class TreeView extends EventTarget{
             e.stopPropagation();
         });
 
+        dir_node_add_folder_button.addEventListener("click", async (e) => {
+            let tentativeNode = this.makeTentativeDirectoryNode();
+            this.getDirectoryContents(dir_node).appendChild(tentativeNode);
+            tentativeNode.querySelector("input").focus();
+            e.stopPropagation();
+        });
+
+        if(label != ""){
+            dir_node_delete_button.addEventListener("click", async function(e){
+                let confirmEv = new Event("needConfirmation");
+                confirmEv.shortMessage = "Confirm delete";
+                confirmEv.longMessage = "Are you sure you want to delete this?";
+                confirmEv.confirmLabel = "Delete";
+                confirmEv.oncancel = ()=>{};
+                confirmEv.onconfirm = ()=>{
+                    let deleteEv = new Event("folderDeleteRequest");
+                    deleteEv.treeView = boundTree;
+                    deleteEv.path = boundTree.getFullPath(dir_node);
+                    deleteEv.FS = boundTree.nodeGetFS(dir_node);
+                    deleteEv.onerror = (err)=>{
+                        let errEv = new Event("filesystemError");
+                        errEv.shortMessage = "Folder deletion failed";
+                        errEv.longMessage = "An error occured and the folder could not be deleted.\n\nReason:\n" + err;
+                        window.dispatchEvent(errEv);
+                    }
+                    boundTree.dispatchEvent(deleteEv);
+                };
+                window.dispatchEvent(confirmEv);
+                e.stopPropagation();
+            });
+        }
 
         this.initFileNodeCallbacks(dir_node);
         return dir_node;
@@ -410,10 +563,14 @@ class TreeView extends EventTarget{
         let file_node_label_text_div = document.createElement("div");
         file_node_label_text_div.classList.add("node-label-text");
 
+        let file_node_delete_button = document.createElement("button");
+        file_node_delete_button.classList.add("bi-trash", "node-button");
+
         let file_node_label_text = document.createTextNode(label);
 
         file_node_label_text_div.appendChild(file_node_label_text);
         file_node_label.appendChild(file_node_label_text_div);
+        file_node_label.appendChild(file_node_delete_button);
 
         file_node_label.addEventListener("click", async function (e) {
             e.stopPropagation();
@@ -427,6 +584,29 @@ class TreeView extends EventTarget{
             ev.path = boundTree.getFullPath(file_node_label);
             ev.FS = boundTree.nodeGetFS(file_node_label);
             boundTree.dispatchEvent(ev);
+        });
+
+        file_node_delete_button.addEventListener("click", async function(e){
+            let confirmEv = new Event("needConfirmation");
+            confirmEv.shortMessage = "Confirm delete";
+            confirmEv.longMessage = "Are you sure you want to delete this?";
+            confirmEv.confirmLabel = "Delete";
+            confirmEv.oncancel = ()=>{};
+            confirmEv.onconfirm = ()=>{
+                let deleteEv = new Event("fileDeleteRequest");
+                deleteEv.treeView = boundTree;
+                deleteEv.path = boundTree.getFullPath(file_node_label);
+                deleteEv.FS = boundTree.nodeGetFS(file_node_label);
+                deleteEv.onerror = (err)=>{
+                    let errEv = new Event("filesystemError");
+                    errEv.shortMessage = "File deletion failed";
+                    errEv.longMessage = "An error occured and the file could not be deleted.\n\nReason:\n" + err;
+                    window.dispatchEvent(errEv);
+                }
+                boundTree.dispatchEvent(deleteEv);
+            };
+            window.dispatchEvent(confirmEv);
+            e.stopPropagation();
         });
 
         this.initFileNodeCallbacks(file_node_label);

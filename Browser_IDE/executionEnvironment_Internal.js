@@ -21,7 +21,6 @@ function findAsyncFunctionConstructorLineOffset(){
     return newlineCount;
 }
 
-
 let isInitialized = false;
 
 moduleEvents.addEventListener("onRuntimeInitialized", function() {
@@ -151,28 +150,7 @@ moduleEvents.addEventListener("onRuntimeInitialized", function() {
     isInitialized = true;
 });
 
-// Convenience function for reporting errors, printing them to the terminal
-// and also sending a message to the main window.
-function ReportError(block, message, line){
-    if (line != null)
-        message = "Error on line "+line+": "+message;
 
-    if (!block.startsWith(userCodeBlockIdentifier)){
-        message = "Please file a bug report and send us the following info!\n    Error in file: "+block+"\n    "+message;
-        block = "Internal Error";
-    }
-    else{
-        block = block.slice(userCodeBlockIdentifier.length);
-    }
-
-    document.getElementById("output").value += "("+block+") "+message+"\n";
-    parent.postMessage({
-        type: "error",
-        block: block,
-        message: message,
-        line: line
-    },"*");
-}
 
 // ------ Code Running ------
 let finishResetNextRun = false;
@@ -245,9 +223,9 @@ function parseErrorStack(err){
 
     //Should we limit this to only SplashKitArgumentError? (i.e if (err instanceof SplashKitArgumentError))
 
-	// Unwind stack until we find user code:
-	while(stackIndex < stack.length && !stack[stackIndex][1].startsWith(userCodeBlockIdentifier))
-		stackIndex += 1;
+    // Unwind stack until we find user code:
+    while(stackIndex < stack.length && !stack[stackIndex][1].startsWith(userCodeBlockIdentifier))
+        stackIndex += 1;
 
     if (stackIndex >= stack.length)
         stackIndex = 0;
@@ -355,7 +333,30 @@ function continueProgram(){
         parent.postMessage({type:"programContinued"},"*");
     }
 }
-async function runProgram(){
+
+// This should all be refactored, and removed from this file
+async function tryProcessAndRunCode(name, source){
+    let processedCode = "";
+    try {
+        // At this point, the code has already been syntax checked outside of the iFrame, so we
+        // should have no trouble here.
+        processedCode = processCodeForExecutionEnvironment(source, "mainLoopStop", "mainLoopPause", "mainLoopContinuer", "onProgramPause");
+
+        await tryEvalSource(name, processedCode);
+    }
+    catch(e) {
+        // If we got a syntax error from Babel, we know the browser can't return a more user friendly
+        // one since it didn't report one initially. Still, better to return it than not...
+        ReportError(userCodeBlockIdentifier+name, "Unexpected error when parsing code: "+e.toString(), null);
+    }
+}
+
+async function runProgram(program){
+
+    for(let file of program) {
+        await tryProcessAndRunCode(file.name, file.source);
+    }
+
     if (window.main === undefined || !(window.main instanceof Function)){
         ReportError(userCodeBlockIdentifier+"Program", "There is no main() function to run!", null);
         return;
@@ -377,61 +378,107 @@ function stopProgram(){
 }
 
 // ------ Message Listening ------
-window.addEventListener('message', function(m){
+window.addEventListener('message', async function(m){
 
-    // --- Code Execution Functions ---
-    if (m.data.type == "RunCodeBlock"){
-        let processedCode = "";
-        try {
-            // At this point, the code has already been syntax checked outside of the iFrame, so we
-            // should have no trouble here.
-            processedCode = processCodeForExecutionEnvironment(m.data.code, "mainLoopStop", "mainLoopPause", "mainLoopContinuer", "onProgramPause");
+    try {
 
-            tryEvalSource(m.data.name, processedCode);
+        // --- Code Execution Functions ---
+        if (m.data.type == "HotReloadFile"){
+            await tryProcessAndRunCode(m.data.name, m.data.code);
         }
-        catch(e) {
-            // If we got a syntax error from Babel, we know the browser can't return a more user friendly
-            // one since it didn't report one initially. So for now just report Unknown error.
-            // TODO: Report Babel's syntax error.
-            ReportError(userCodeBlockIdentifier+m.data.name, "Unknown syntax error.", null);
+
+        if (m.data.type == "ReportError"){
+            ReportError(userCodeBlockIdentifier + m.data.block, m.data.message, m.data.line);
         }
-    }
 
-    if (m.data.type == "ReportError"){
-        ReportError(userCodeBlockIdentifier + m.data.block, m.data.message, m.data.line);
-    }
+        if (m.data.type == "CleanEnvironment"){
+            ResetExecutionScope();
+        }
 
-    if (m.data.type == "CleanEnvironment"){
-        ResetExecutionScope();
-    }
+        if (m.data.type == "RunProgram"){
+            runProgram(m.data.program);
+        }
+        if (m.data.type == "PauseProgram"){
+            pauseProgram();
+        }
+        if (m.data.type == "ContinueProgram"){
+            continueProgram();
+        }
+        if (m.data.type == "StopProgram"){
+            stopProgram();
+        }
 
-    if (m.data.type == "RunProgram"){
-        runProgram();
-    }
-    if (m.data.type == "PauseProgram"){
-        pauseProgram();
-    }
-    if (m.data.type == "ContinueProgram"){
-        continueProgram();
-    }
-    if (m.data.type == "StopProgram"){
-        stopProgram();
-    }
-
-    // --- FS Handling ---
-    if (m.data.type == "mkdir"){
-        try{
+        // --- FS Handling ---
+        if (m.data.type == "mkdir"){
             FS.mkdir(m.data.path);
         }
-        catch{}
-    }
 
-    if (m.data.type == "writeFile"){
-        FS.writeFile(m.data.path,m.data.data);
-    }
+        if (m.data.type == "writeFile"){
+            FS.writeFile(m.data.path,m.data.data);
+        }
 
-    if (m.data.type == "rename"){
-        FS.rename(m.data.oldPath,m.data.newPath);
+        if (m.data.type == "rename"){
+            FS.rename(m.data.oldPath,m.data.newPath);
+        }
+
+        if (m.data.type == "unlink"){
+            FS.unlink(m.data.path);
+        }
+
+        if (m.data.type == "rmdir"){
+            if(m.data.recursive){
+                let deleteContentsRecursive = function(p){
+                    let entries = FS.readdir(p);
+                    for(let entry of entries){
+                        if(entry == "." || entry == "..")
+                            continue;
+                        // All directories contain a reference to themself
+                        // and to their parent directory. Ignore them.
+
+                        let entryPath = p + "/" + entry;
+                        let entryStat = FS.stat(entryPath, false);
+
+                        if(FS.isDir(entryStat.mode)){
+                            deleteContentsRecursive(entryPath);
+                            FS.rmdir(entryPath);
+                        } else if(FS.isFile(entryStat.mode)){
+                            FS.unlink(entryPath);
+                        }
+
+                    }
+                }
+                deleteContentsRecursive(m.data.path);
+                FS.rmdir(m.data.path);
+                // FS.rmdir expects the directory to be empty
+                // and will throw an error if it is not.
+            } else {
+                FS.rmdir(m.data.path);
+            }
+        }
+
+        if('callbackID' in m.data){
+            parent.postMessage({
+                type: "callback",
+                callbackID: m.data.callbackID,
+                error: undefined,
+            }, "*");
+        }
+
+    } catch(err){
+
+        // For good reason, postMessage cannot transfer function references.
+        // We need to sanitise err to avoid that.
+        // TODO: Do anything other than this.
+        err = err.toString();
+
+        if('callbackID' in m.data){
+            parent.postMessage({
+                type: "callback",
+                callbackID: m.data.callbackID,
+                error: err,
+            }, "*");
+        }
+
     }
 
 }, false);
@@ -440,6 +487,14 @@ window.addEventListener('message', function(m){
 function postFSEvent(data){
     parent.postMessage({type:"FS", message:data},"*");
 }
+
+moduleEvents.addEventListener("onDownloadFail", function(e) {
+    parent.postMessage({type: "onDownloadFail", name: e.downloadName,
+                                                url: e.info.responseURL,
+                                                status: e.info.status,
+                                                statusText: e.info.statusText
+    }, "*");
+});
 
 moduleEvents.addEventListener("onRuntimeInitialized", function() {
     // Attach to file system callbacks

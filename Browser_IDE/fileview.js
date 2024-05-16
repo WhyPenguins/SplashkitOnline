@@ -3,16 +3,24 @@ let myTreeView = new TreeView(document.getElementById("fileView"), {"persistent"
 
 
 // Attach callbacks for treeview GUI
-myTreeView.addEventListener("nodeMoveRequest", function(e){
-    if (e.FS.includes("transient"))
-        executionEnviroment.rename(e.oldPath, e.newPath);
-    if (e.FS.includes("persistent"))
-        storedProject.access((project)=>project.rename(e.oldPath, e.newPath));
+myTreeView.addEventListener("nodeMoveRequest", async function(e){
+    try {
+        await unifiedFS.rename(
+            e.oldPath,
+            e.newPath,
+            e.FS.includes("transient"),
+            e.FS.includes("persistent")
+        );
+
+        if('onsuccess' in e) e.onsuccess();
+    } catch(err){
+        if('onerror' in e) e.onerror(err);
+    }
 });
 
 myTreeView.addEventListener("nodeDoubleClick", function(e){
     if (e.FS.includes("persistent"))
-        FSviewFile(e.path,"text/plain");
+        FSviewFile(e.path);
 });
 
 myTreeView.addEventListener("folderUploadRequest", function(e){
@@ -20,10 +28,52 @@ myTreeView.addEventListener("folderUploadRequest", function(e){
     document.getElementById("fileuploader").click();
 });
 
+myTreeView.addEventListener("fileDeleteRequest", async function(e){
+    try {
+        await unifiedFS.unlink(
+            e.path,
+            e.FS.includes("transient"),
+            e.FS.includes("persistent")
+        );
+
+        if('onsuccess' in e) e.onsuccess();
+    } catch(err){
+        if('onerror' in e) e.onerror(err);
+    }
+});
+
+myTreeView.addEventListener("folderCreateRequest", async (e) => {
+    try {
+        await unifiedFS.mkdir(
+            e.path,
+            e.FS.includes("transient"),
+            e.FS.includes("persistent")
+        );
+
+        if('onsuccess' in e) e.onsuccess();
+    } catch(err){
+        if('onerror' in e) e.onerror(err);
+    }
+});
+
+myTreeView.addEventListener("folderDeleteRequest", async function(e){
+    try {
+        await unifiedFS.rmdir(
+            e.path,
+            true,
+            e.FS.includes("transient"),
+            e.FS.includes("persistent")
+        );
+
+        if('onsuccess' in e) e.onsuccess();
+    } catch(err){
+        if('onerror' in e) e.onerror(err);
+    }
+});
 
 // Attach to file system callbacks within the Execution Environment
 executionEnviroment.addEventListener('onMovePath', function(e) {
-    myTreeView.moveNode(e.oldPath, e.newPath, -1, "transient");
+    myTreeView.moveNode(e.oldPath, e.newPath, "transient");
 });
 
 executionEnviroment.addEventListener('onMakeDirectory', function(e) {
@@ -41,7 +91,7 @@ executionEnviroment.addEventListener('onOpenFile', function(e) {
 // Attach to file system callbacks within the IDBStoredProject
 storedProject.addEventListener('onMovePath', function(e) {
     //TODO: Get moving to specific index working again - ideally make it persistent as well
-    myTreeView.moveNode(e.oldPath, e.newPath, -1, "persistent");
+    myTreeView.moveNode(e.oldPath, e.newPath, "persistent");
 });
 
 storedProject.addEventListener('onMakeDirectory', function(e) {
