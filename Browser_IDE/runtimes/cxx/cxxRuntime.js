@@ -190,6 +190,22 @@ function clearWorkerCommands(command) {
 }
 
 async function registerServiceWorker(){
+    // first try tidying up any erroneous service workers
+    try {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+            for (const registration of registrations) {
+                if (registration.scope.includes("executionEnvironment.html"))
+                    registration.unregister();
+            }
+        });
+    }
+    catch(err) {
+        executionEnvironment.reportCriticalInitializationFail(
+            "Error when modifying service workers. <br/>"+
+            err.toString()
+        );
+    }
+
     try {
         let path = (new URL(window.location.href)).pathname;
         let scope = path.slice(0,path.lastIndexOf("/")+1);
