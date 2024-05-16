@@ -616,7 +616,7 @@ if (SUPPORT_BASE64_EMBEDDING) {
   }
 }
 var worker = null;
-function RunProgram(wasmBinary){
+function StartProgramWorker(wasmBinary){
 worker = new Worker(workerURL);
 
 if (ENVIRONMENT_IS_NODE) {
@@ -631,7 +631,7 @@ if (ENVIRONMENT_IS_NODE) {
   WebGLClient.prefetch();
 
 
-setTimeout(() => {
+worker.RunProgram = () => {
   worker.postMessage({
     target: 'worker-init',
     width: Module.canvas.width,
@@ -640,7 +640,7 @@ setTimeout(() => {
     URL: document.URL,
     currentScriptUrl: filename,
     preMain: true });
-}, 0); // delay til next frame, to make sure html is ready
+};
 }
 
 var workerResponded = false;
