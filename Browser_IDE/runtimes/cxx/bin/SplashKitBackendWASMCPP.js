@@ -616,7 +616,7 @@ if (SUPPORT_BASE64_EMBEDDING) {
   }
 }
 var worker = null;
-function StartProgramWorker(wasmBinary){
+function StartProgramWorker(wasmBinary, audioContext){
 worker = new Worker(workerURL);
 
 if (ENVIRONMENT_IS_NODE) {
@@ -626,6 +626,7 @@ if (ENVIRONMENT_IS_NODE) {
   worker.postMessage({
     target: 'module-init',
         wasmBinary: wasmBinary,
+        audioContext: audioContext,
   });
 
   WebGLClient.prefetch();
