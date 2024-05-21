@@ -43,7 +43,6 @@ class CXXCompiler extends Compiler{
 
     checkUsageOfIncompleteAPI(source) {
         let incompleteAPIFunctions = [
-            "read_line",
             "read_char",
             "terminal_has_input",
             "take_screenshot",
