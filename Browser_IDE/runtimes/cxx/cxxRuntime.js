@@ -62,6 +62,7 @@ var Module = {
                 break;
             default:
                 console.log("Unexpected event in cxxRuntime.js!", event);
+                break;
         }
     }
 };
@@ -134,8 +135,6 @@ class ExecutionEnvironmentInternalCXX extends ExecutionEnvironmentInternal{
 
         // start the program!
         worker.RunProgram();
-
-        RunProgram(program);
     }
     sendKeepAliveSignal(){
         sendWorkerCommand("keepAlive", {});

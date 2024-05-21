@@ -294,8 +294,3 @@ Module['stdin'] = function() {
 
     return character[0];
 }
-
-// Clear event buffer
-// Skip first set of commands, they may be old data
-skipNextCommands = true;
-__sko_process_events();
