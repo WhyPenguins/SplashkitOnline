@@ -70,7 +70,13 @@ function handleEvent([event, args]){
             } else {
                 FS.rmdir(args.path);
             }
-
+            break;
+        case "stdin":
+            Module.intArrayFromString(args.value).forEach(function(v) {inputBuffer.push(v)});
+            inputBuffer.push(null);
+            break;
+        case "continue":
+            break;
         case "EmEvent":
             switch (args.target) {
                 case 'document': {
@@ -152,10 +158,14 @@ function __sko_process_events(){
 }
 
 // a busy loop for when paused
-function pauseLoop(waitOn, reportContinue=true) {
+function pauseLoop(waitOn, reportContinue=true, handleEvents=true) {
     let paused = true;
     while (paused) {
         let programEvents = fetchEvents();
+        if (handleEvents) {
+            programEvents.forEach(handleEvent);
+        }
+
         for (let i = 0; i < programEvents.length; i ++) {
             if (programEvents[i][0] == waitOn) {
                 lastKeepAlive = performance.now();
@@ -269,3 +279,23 @@ Module['onExit'] = function() {
         type: "ProgramEnded"
     });
 }
+
+let inputBuffer = new Array(0);
+let inputBufferWasFull = false;
+
+Module['stdin'] = function() {
+    if (inputBuffer.length == 0) {
+        postCustomMessage({ type: "stdinAwait" });
+
+        pauseLoop('stdin', false, true);
+    }
+
+    let character = inputBuffer.splice(0, 1);
+
+    return character[0];
+}
+
+// Clear event buffer
+// Skip first set of commands, they may be old data
+skipNextCommands = true;
+__sko_process_events();
