@@ -264,8 +264,13 @@ async function updateNoEditorsMessage() {
     document.getElementById("noEditorsMessage").style.opacity = (editors.length == 0 && !makingNewProject) ? 1 : 0;
 }
 
-async function openCodeEditors() {
+async function openCodeEditors(editorLimit = 3) {
     let sourceFiles = await findAllSourceFiles();
+
+    if (sourceFiles.length > editorLimit) {
+        updateNoEditorsMessage();
+        return;
+    }
 
     for(let i = 0; i < sourceFiles.length; i ++) {
         openCodeEditor(sourceFiles[i], false);
@@ -279,7 +284,7 @@ async function openCodeEditors() {
     updateNoEditorsMessage();
 }
 
-let shownRenameMessage = false; // show once per session
+const shownRenameMessageKey = 'sk-online-shown-rename-message';
 async function openUntitledCodeEditor() {
     let number = 0;
     let filename = "/code/untitled."+activeLanguage.defaultSourceExtension;
@@ -294,19 +299,21 @@ async function openUntitledCodeEditor() {
 
     updateNoEditorsMessage();
 
-    if (!shownRenameMessage) {
-        displayEditorNotification("You can double click a code tab's name to rename it!", NotificationIcons.INFO, 4);
-        shownRenameMessage = true;
+    if (!localStorage.getItem(shownRenameMessageKey)) {
+        displayEditorNotification("You can double click a code tab's name to rename it!", NotificationIcons.INFO, 6);
+        localStorage.setItem(shownRenameMessageKey, true);
     }
 }
 
-async function closeCodeEditor(editor) {
+async function closeCodeEditor(editor, autosave = true) {
     let index = editors.indexOf(editor);
     if (index != -1) {
         let editor = editors[index];
         editors.splice(index, 1);
 
-        await editor.save();
+        if (autosave)
+            await editor.save();
+
         editor.close();
     }
 
@@ -706,11 +713,15 @@ async function syntaxCheckFile(name, code) {
 }
 
 storedProject.addEventListener('onWriteToFile', function(e) {
-    for (let i = 0; i < editors.length; i ++) {
-        if (e.path == editors[i].filename) {
-            editors[i].load();
-        }
-    }
+    let editor = getCodeEditor(e.path);
+    if (editor)
+        editor.load();
+});
+
+storedProject.addEventListener('onDeletePath', function(e) {
+    let editor = getCodeEditor(e.path);
+    if (editor)
+        closeCodeEditor(editor, false);
 });
 
 
