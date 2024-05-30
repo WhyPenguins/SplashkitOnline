@@ -111,6 +111,7 @@ class ExecutionEnvironmentInternalCXX extends ExecutionEnvironmentInternal{
         this.keepAliveID = setInterval(this.sendKeepAliveSignal, 500);
 
         clearWorkerCommands();
+        setTerminalInputAwaitState(false);
 
         StartProgramWorker(program, {
             sampleRate: audioPlayer.audioContext.sampleRate
@@ -130,8 +131,6 @@ class ExecutionEnvironmentInternalCXX extends ExecutionEnvironmentInternal{
         }
 
         await this.signalStarted();
-
-        setTerminalInputAwaitState(false);
 
         // start the program!
         worker.RunProgram();
