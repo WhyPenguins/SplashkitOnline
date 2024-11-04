@@ -140,7 +140,7 @@ jobs:
           echo "repoSiteURL=$repoSiteURL" >> $GITHUB_ENV
 
       - name: Leave a link to the PR
-        if: ${{ github.event_name == 'pull_request' }} && ${{ github.event.action != 'closed' }}
+        if: ${{ success() && github.event_name == 'pull_request' && github.event.action != 'closed' }}
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: pr-preview
@@ -149,7 +149,7 @@ jobs:
             Preview at https://${{ env.repoSiteURL }}/pr-previews/${{ github.event.number }} for commit ${{ github.sha }}
 
       - name: Or delete the link...
-        if: ${{ github.event_name == 'pull_request' }} && ${{ github.event.action == 'closed' }}
+        if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' }}
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: pr-preview
