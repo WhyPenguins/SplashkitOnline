@@ -1,4 +1,4 @@
-name: Deploy current `deploy` _and_ PR previews
+name: Deploy current 'deployed'/PR previews
 
 on:
   # Runs on pushes targeting the default branch
@@ -158,6 +158,7 @@ jobs:
             # PR Preview Removed
           
   deploy:
+    needs: build
     environment:
       name: static-site
       url: ${{ steps.deployment.outputs.page_url }}
