@@ -113,7 +113,7 @@ jobs:
             mkdir -p ./pr-builds
             mv ./pr-builds ../
             mv ./.git ../
-            rm -rf ./* ./.*
+            cd ../ && rm -rf site-builds && mkdir site-builds && cd site-builds
             mv ../.git ./.git
             mv ../pr-builds ./pr-builds
           
