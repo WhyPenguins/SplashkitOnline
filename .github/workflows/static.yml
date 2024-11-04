@@ -1,5 +1,4 @@
-# Simple workflow for deploying static content to GitHub Pages
-name: Deploy static content to Pages
+name: Deploy current `deploy` _and_ PR previews
 
 on:
   # Runs on pushes targeting the default branch
@@ -23,15 +22,15 @@ permissions:
   id-token: write
   pull-requests: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# Allow only one concurrent deployment per PR, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
   group: preview-${{ github.ref }}
   # cancel-in-progress: false
 
 jobs:
-  # Single deploy job since we're just deploying
-  deploy:
+  # Updates the `site-builds` branch with the new build
+  build:
     environment:
       name: static-site
       url: ${{ steps.deployment.outputs.page_url }}
@@ -134,6 +133,7 @@ jobs:
           git add --all
           git commit -m "Update builds"
           git branch -M new-site-builds site-builds
+          # TODO: This is race condition, if there are two simultaneous PRs only one will survive... 
           git push origin site-builds --force-with-lease
 
           repoSiteURL=$(echo ${{ github.repository }} | sed 's/\//.github.io\//')
@@ -157,3 +157,24 @@ jobs:
           message: |
             # PR Preview Removed
           
+  deploy:
+    environment:
+      name: static-site
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: 'false'
+          ref: site-builds
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Upload IDE site
+          path: './'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
