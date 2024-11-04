@@ -109,21 +109,23 @@ jobs:
           echo "Event! ${event}"
           echo "Action! ${action}"
           if [ "${event}" == "push" ]; then
-            # clean the directory - delete everything except for pr-builds and .git, a bit hacky really...
-            mkdir -p ./pr-builds
-            mv ./pr-builds ../
+            # clean the directory - delete everything except for pr-previews and .git, a bit hacky really...
+            mkdir -p ./pr-previews
+            mv ./pr-previews ../
             mv ./.git ../
             cd ../ && rm -rf site-builds && mkdir site-builds && cd site-builds
             mv ../.git ./.git
-            mv ../pr-builds ./pr-builds
+            mv ../pr-previews ./pr-previews
           
             echo "Deploy!"
             mv ../splashkitonline/Browser_IDE/* ./
           elif [ "${event}" == "pull_request" ]; then
             echo "PR! ${pr}"
-            rm -rf "./pr-builds/${pr}"
-            mkdir -p "./pr-builds/${pr}"
-            mv ../splashkitonline/Browser_IDE/* ./pr-builds/${pr}/
+            rm -rf "./pr-previews/${pr}"
+            if [ "${action}" != "closed" ]; then
+              mkdir -p "./pr-previews/${pr}"
+              mv ../splashkitonline/Browser_IDE/* ./pr-previews/${pr}/
+            fi
           fi
 
           # commit!
@@ -138,14 +140,20 @@ jobs:
           echo "repoSiteURL=$repoSiteURL" >> $GITHUB_ENV
 
       - name: Leave a link to the PR
-        if: ${{ github.event_name == 'pull_request' }}
+        if: ${{ github.event_name == 'pull_request' }} && ${{ github.event.action != 'closed' }}
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: pr-preview
           message: |
-            SplashKit Online PR Preview!
-            
-            :---:
-            
-            Preview at https://${{ env.repoSiteURL }}/pr-builds/${{ github.event.number }} for ${{ github.sha }}
+            # PR Preview!
+            Preview at https://${{ env.repoSiteURL }}/pr-previews/${{ github.event.number }} for commit ${{ github.sha }}
+
+      - name: Or delete the link...
+        if: ${{ github.event_name == 'pull_request' }} && ${{ github.event.action == 'closed' }}
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: pr-preview
+          delete: true
+          message: |
+            # PR Preview Removed
           
