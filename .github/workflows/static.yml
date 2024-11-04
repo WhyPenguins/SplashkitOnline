@@ -121,7 +121,7 @@ jobs:
             mv ../splashkitonline/Browser_IDE/* ./
           elif [ "${event}" == "pull_request" ]; then
             echo "PR! ${pr}"
-            rm -r "./pr-builds/${pr}"
+            rm -rf "./pr-builds/${pr}"
             mkdir "./pr-builds/${pr}"
             mv ../splashkitonline/Browser_IDE/* ./pr-builds/${pr}/
           fi
