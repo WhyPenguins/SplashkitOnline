@@ -42,6 +42,8 @@ jobs:
           node-version: 20
         env:
           GITHUB_TOKEN: ''
+      - name: Install hardlink
+        run: sudo apt-get install -y hardlink # Oh we have passwordless sudo...the later stuff is definitely not secure...
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -169,6 +171,8 @@ jobs:
         with:
           submodules: 'false'
           ref: site-builds
+      - name: Reduce Duplication
+        run: hardlink -t -v
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
