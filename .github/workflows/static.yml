@@ -130,7 +130,7 @@ jobs:
           # commit!
           git config --global user.email "buildbot@bot.bot"
           git config --global user.name "build-bot-bob"
-          git add --all
+          git add --all --force
           git commit -m "Update builds"
           git branch -M new-site-builds site-builds
           # TODO: This is race condition, if there are two simultaneous PRs only one will survive... 
@@ -176,6 +176,7 @@ jobs:
         with:
           # Upload IDE site
           path: './'
+          compression-level: 8
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
