@@ -26,8 +26,8 @@ permissions:
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  group: preview-${{ github.ref }}
+  # cancel-in-progress: false
 
 jobs:
   # Single deploy job since we're just deploying
@@ -105,24 +105,24 @@ jobs:
         run: |
           git checkout --orphan new-site-builds site-builds
 
-          # delete everything except for pr-builds and .git, a bit hacky really...
-          mkdir -p ./pr-builds
-          mv ./pr-builds ../
-          mv ./.git ../
-          rm -rf ./* ./.*
-          mv ../.git ./.git
-          mv ../pr-builds ./pr-builds
-
           # move the new build in!
           echo "Event! ${event}"
           echo "Action! ${action}"
           if [ "${event}" == "push" ]; then
+            # clean the directory - delete everything except for pr-builds and .git, a bit hacky really...
+            mkdir -p ./pr-builds
+            mv ./pr-builds ../
+            mv ./.git ../
+            cd ../ && rm -rf site-builds && mkdir site-builds && cd site-builds
+            mv ../.git ./.git
+            mv ../pr-builds ./pr-builds
+          
             echo "Deploy!"
             mv ../splashkitonline/Browser_IDE/* ./
           elif [ "${event}" == "pull_request" ]; then
             echo "PR! ${pr}"
             rm -rf "./pr-builds/${pr}"
-            mkdir "./pr-builds/${pr}"
+            mkdir -p "./pr-builds/${pr}"
             mv ../splashkitonline/Browser_IDE/* ./pr-builds/${pr}/
           fi
 
@@ -134,10 +134,18 @@ jobs:
           git branch -M new-site-builds site-builds
           git push origin site-builds --force-with-lease
 
+          repoSiteURL=$(echo ${{ github.repository }} | sed 's/\//.github.io\//')
+          echo "repoSiteURL=$repoSiteURL" >> $GITHUB_ENV
+
       - name: Leave a link to the PR
-        if: ${{ github.event_name }} == 'pull_request'
+        if: ${{ github.event_name == 'pull_request' }}
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: pr-preview
-          message: "SplashKit Online PR Preview!:---:Preview at https://${{ steps.deployment.outputs.page_url }}/pr-builds/${{ github.event.number }}"
+          message: |
+            SplashKit Online PR Preview!
+            
+            :---:
+            
+            Preview at https://${{ env.repoSiteURL }}/pr-builds/${{ github.event.number }} for ${{ github.sha }}
           
