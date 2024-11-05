@@ -5,7 +5,7 @@ on:
   push:
     branches: ["deployed"]
 
-  pull_request:
+  pull_request_target:
     types:
       - opened
       - reopened
@@ -31,9 +31,8 @@ concurrency:
 jobs:
   # Updates the `site-builds` branch with the new build
   build:
-    environment:
-      name: static-site
-      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Use Node.js 20
@@ -42,8 +41,6 @@ jobs:
           node-version: 20
         env:
           GITHUB_TOKEN: ''
-      - name: Install hardlink
-        run: sudo apt-get install -y hardlink # Oh we have passwordless sudo...the later stuff is definitely not secure...
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -66,6 +63,7 @@ jobs:
           mv node_modules/@babel/standalone babel
           mv node_modules/split.js/dist split.js
           mv node_modules/mime/dist mime
+          rm -rf external/js-lzma/data
           mv ../DemoProjects DemoProjects
         env:
           GITHUB_TOKEN: ''
@@ -84,17 +82,34 @@ jobs:
           wget -O runtimes/cxx/bin/SplashKitBackendWASMCPP.worker.js https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/runtimes/cxx/bin/SplashKitBackendWASMCPP.worker.js
         env:
           GITHUB_TOKEN: ''
-      # At this point any scripts that exist in the filesystem _cannot_ be trusted
-      # But I think (...?) if we do everything in the workflow from here on,
-      # it should be safe and be unable to trash the live site. I think anyway...
 
-      # - name: Create Build Archive
-      #   run: tar -c --lzma -f deployed.tar.gz ./Browser_IDE # ${{ inputs.pr-number }}
+      - name: Upload the build as an artifact
+        uses: actions/upload-artifact@v4.4.3
+        with:
+          name: preview-${{ github.ref }}
+          path: ./
+          retention-days: 1
+          compression-level: 8
+          overwrite: true
+          
+  deploy:
+    needs: build
+    environment:
+      name: static-site
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download a Build Artifact
+        uses: actions/download-artifact@v4.1.8
+        with:
+          name: preview-${{ github.ref }}
+          path: built-site
 
       - name: Checkout Site Builds
         uses: actions/checkout@v4
         with:
           path: site-builds
+          submodules: 'false'
           ref: site-builds
           
       - name: Upload Built Archive
@@ -120,7 +135,7 @@ jobs:
           
             echo "Deploy!"
             mv ../splashkitonline/Browser_IDE/* ./
-          elif [ "${event}" == "pull_request" ]; then
+          elif [ "${event}" == "pull_request_target" ]; then
             echo "PR! ${pr}"
             rm -rf "./pr-previews/${pr}"
             if [ "${action}" != "closed" ]; then
@@ -142,7 +157,7 @@ jobs:
           echo "repoSiteURL=$repoSiteURL" >> $GITHUB_ENV
 
       - name: Leave a link to the PR
-        if: ${{ success() && github.event_name == 'pull_request' && github.event.action != 'closed' }}
+        if: ${{ success() && github.event_name == 'pull_request_target' && github.event.action != 'closed' }}
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: pr-preview
@@ -151,36 +166,21 @@ jobs:
             Preview at https://${{ env.repoSiteURL }}/pr-previews/${{ github.event.number }} for commit ${{ github.sha }}
 
       - name: Or delete the link...
-        if: ${{ github.event_name == 'pull_request' && github.event.action == 'closed' }}
+        if: ${{ github.event_name == 'pull_request_target' && github.event.action == 'closed' }}
         uses: marocchino/sticky-pull-request-comment@v2
         with:
           header: pr-preview
           delete: true
           message: |
             # PR Preview Removed
-          
-  deploy:
-    needs: build
-    environment:
-      name: static-site
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: 'false'
-          ref: site-builds
-      - name: Reduce Duplication
-        run: hardlink -t -v ./
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           # Upload IDE site
-          path: './'
-          compression-level: 8
+          path: './site-builds'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
