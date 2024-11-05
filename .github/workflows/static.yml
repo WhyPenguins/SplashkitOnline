@@ -24,7 +24,9 @@ concurrency:
   # cancel-in-progress: false
 
 jobs:
-  # Updates the `site-builds` branch with the new build
+  # Creates a build of the website and uploads it as an artifact
+  # May be running untrusted code, so it's been given very restricted permissions
+  # Hopefully it can't do anything too bad...
   build:
     permissions:
       contents: read
@@ -36,6 +38,7 @@ jobs:
           node-version: 20
         env:
           GITHUB_TOKEN: ''
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -52,6 +55,7 @@ jobs:
           npm install
         env:
           GITHUB_TOKEN: ''
+
       - name: shuffle folders
         working-directory: ./splashkitonline/Browser_IDE
         run: |
@@ -64,6 +68,7 @@ jobs:
           mv ../DemoProjects DemoProjects
         env:
           GITHUB_TOKEN: ''
+
       - name: download binaries
         working-directory: ./splashkitonline/Browser_IDE #python3 ./setup.py
         run: |
@@ -88,7 +93,9 @@ jobs:
           retention-days: 1
           compression-level: 8
           overwrite: true
-          
+
+  # This part takes that artifact, merges it in to `site-builds` in its respective folder,
+  # and deploys.
   deploy:
     needs: build
     # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
@@ -179,6 +186,7 @@ jobs:
         with:
           # Upload IDE site
           path: './site-builds'
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
@@ -189,8 +197,10 @@ jobs:
         with:
           header: pr-preview
           message: |
-            # PR Preview!
-            Preview at https://${{ env.repoSiteURL }}/pr-previews/${{ github.event.number }} for commit ${{ github.sha }}
+            | :whale2: **PR Preview!** |
+            | :-----: |
+            | Preview at https://${{ env.repoSiteURL }}/pr-previews/${{ github.event.number }} |
+            | for commit ${{ github.event.pull_request.head.sha }} |
 
       - name: Or delete the link...
         if: ${{ github.event_name == 'pull_request_target' && github.event.action == 'closed' }}
