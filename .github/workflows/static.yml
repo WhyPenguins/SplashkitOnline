@@ -103,7 +103,7 @@ jobs:
         uses: actions/download-artifact@v4.1.8
         with:
           name: preview-${{ github.sha }}
-          path: built-site
+          path: ./built-site
 
       - name: Checkout Site Builds
         uses: actions/checkout@v4
@@ -124,6 +124,7 @@ jobs:
           # move the new build in!
           echo "Event! ${event}"
           echo "Action! ${action}"
+          ls ./
           if [ "${event}" == "push" ]; then
             # clean the directory - delete everything except for pr-previews and .git, a bit hacky really...
             mkdir -p ./pr-previews
