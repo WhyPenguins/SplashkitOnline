@@ -54,7 +54,7 @@ def process_pr_folder(pr_folder):
                     # If an identical file exists in root, create a redirect and delete
                     root_file_path = root_file_hashes[file_hash]
                     pr_path_map["redirects"][get_relative_path(file_path, ROOT_DIR)] = get_relative_path(root_file_path, ROOT_DIR)
-                    #os.remove(file_path)
+                    os.remove(file_path)
                     print("remove", file_path)
                 else:
                     # Prepare to move file to PRBulk with hash-appended name if unique
