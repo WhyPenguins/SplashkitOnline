@@ -87,7 +87,7 @@ jobs:
         uses: actions/upload-artifact@v4.4.3
         with:
           name: preview-${{ github.sha }}
-          path: ./
+          path: ./splashkitonline/Browser_IDE
           retention-days: 1
           compression-level: 8
           overwrite: true
@@ -134,13 +134,13 @@ jobs:
             mv ../pr-previews ./pr-previews
           
             echo "Deploy!"
-            mv ../splashkitonline/Browser_IDE/* ./
+            mv ./built-site/* ./
           elif [ "${event}" == "pull_request_target" ]; then
             echo "PR! ${pr}"
             rm -rf "./pr-previews/${pr}"
             if [ "${action}" != "closed" ]; then
               mkdir -p "./pr-previews/${pr}"
-              mv ../splashkitonline/Browser_IDE/* ./pr-previews/${pr}/
+              mv ./built-site/* ./pr-previews/${pr}/
             fi
           fi
 
