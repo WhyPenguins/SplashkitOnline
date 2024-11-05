@@ -6,12 +6,13 @@ import shutil
 
 # Define paths and extensions
 ROOT_DIR = "./"
-PR_DIR = os.path.join(ROOT_DIR, "pr-previews")
-PR_BULK_DIR = os.path.join(ROOT_DIR, "pr-previews/bulk")
+PR_DIRS = [os.path.join(ROOT_DIR, "pr-previews"), os.path.join(ROOT_DIR, "branch-previews")]
+PR_BULK_DIRS = [os.path.join(ROOT_DIR, "pr-previews/bulk"), os.path.join(ROOT_DIR, "branch-previews/bulk")]
 EXTENSIONS = {".wasm", ".lzma", ".zip"}
 
 # Ensure PRBulk directory exists
-os.makedirs(PR_BULK_DIR, exist_ok=True)
+for bulk_dir in PR_BULK_DIRS:
+    os.makedirs(bulk_dir, exist_ok=True)
 
 # Global cache for root file hashes
 root_file_hashes = {}
@@ -39,7 +40,7 @@ def cache_root_hashes():
                 file_hash = calculate_hash(file_path)
                 root_file_hashes[file_hash] = file_path
 
-def process_pr_folder(pr_folder):
+def process_pr_folder(pr_folder, bulk_dir):
     pr_path_map = {"redirects": {}}
     for root, _, files in os.walk(pr_folder):
         for file in files:
@@ -59,7 +60,7 @@ def process_pr_folder(pr_folder):
                 else:
                     # Prepare to move file to PRBulk with hash-appended name if unique
                     new_name = f"{os.path.splitext(file)[0]}_{file_hash}{os.path.splitext(file)[1]}"
-                    bulk_path = os.path.join(PR_BULK_DIR, new_name)
+                    bulk_path = os.path.join(bulk_dir, new_name)
                     
                     # Move file to PRBulk if it doesn’t already exist
                     if not os.path.exists(bulk_path):
@@ -76,10 +77,16 @@ def process_pr_folder(pr_folder):
 cache_root_hashes()
 
 # Process each PR folder
-for pr_folder_name in os.listdir(PR_DIR):
-    pr_folder_path = os.path.join(PR_DIR, pr_folder_name)
-    if os.path.isdir(pr_folder_path) and pr_folder_path != PR_BULK_DIR:
-        print(f"Processing {pr_folder_path}...")
-        process_pr_folder(pr_folder_path)
+for pr_dir, bulk_dir in zip(PR_DIRS, PR_BULK_DIRS):
+    print("Processing {pr_dir}...")
+    if not os.path.exists(pr_dir):
+        print("!!!!!!{pr_dir} doesn't exist! Skipping!!!!!!")
+        continue
+
+    for pr_folder_name in os.listdir(pr_dir):
+        pr_folder_path = os.path.join(pr_dir, pr_folder_name)
+        if os.path.isdir(pr_folder_path) and pr_folder_path != bulk_dir:
+            print(f"Processing {pr_folder_path}...")
+            process_pr_folder(pr_folder_path, bulk_dir)
 
 print("Deduplication and mapping complete!")
