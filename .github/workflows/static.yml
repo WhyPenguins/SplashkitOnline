@@ -148,13 +148,12 @@ jobs:
           if [ "${event}" == "push" ]; then
             echo "Branch! ${ref}"
             rm -rf "./branch-previews/${ref}"
-            mv ../built-site/* "./branch-previews/${ref}/"
+            mv ../built-site "./branch-previews/${ref}"
           elif [ "${event}" == "pull_request_target" ]; then
             echo "PR! ${pr}"
             rm -rf "./pr-previews/${pr}"
             if [ "${action}" != "closed" ]; then
-              mkdir -p "./pr-previews/${pr}"
-              mv ../built-site/* "./pr-previews/${pr}/"
+              mv ../built-site "./pr-previews/${pr}"
             fi
           fi
 
