@@ -175,7 +175,7 @@ jobs:
         run: |
           mkdir -p "./branch-previews/refs/heads/deployed" # just in case
           mv "./branch-previews/refs/heads/deployed" ../deployed
-          mv "./*" ../deployed/
+          mv ./* ../deployed/
 
       - name: Checkout de-duplicate script # This way it's safe...
         uses: actions/checkout@v4
