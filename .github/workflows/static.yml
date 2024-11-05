@@ -135,13 +135,13 @@ jobs:
             mv ../pr-previews ./pr-previews
           
             echo "Deploy!"
-            mv ./built-site/* ./
+            mv ../built-site/* ./
           elif [ "${event}" == "pull_request_target" ]; then
             echo "PR! ${pr}"
             rm -rf "./pr-previews/${pr}"
             if [ "${action}" != "closed" ]; then
               mkdir -p "./pr-previews/${pr}"
-              mv ./built-site/* ./pr-previews/${pr}/
+              mv ../built-site/* ./pr-previews/${pr}/
             fi
           fi
 
