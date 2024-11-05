@@ -3,7 +3,7 @@ name: Deploy current 'deployed'/PR previews
 on:
   # Runs on pushes targeting the default branch
   push:
-    branches: ["deployed"]
+    branches: ["deployed", "main"]
 
   pull_request_target: # use trusted workflow (as opposed to `pull_request`)
     types:
@@ -128,30 +128,33 @@ jobs:
           action: ${{ github.event.action }}
           event: ${{ github.event_name }}
           pr: ${{ github.event.number }}
+          ref: ${{ github.ref }}
         run: |
           git checkout --orphan new-site-builds site-builds
 
           # move the new build in!
-          echo "Event! ${event}"
-          echo "Action! ${action}"
-          ls ./
-          if [ "${event}" == "push" ]; then
-            # clean the directory - delete everything except for pr-previews and .git, a bit hacky really...
-            mkdir -p ./pr-previews
-            mv ./pr-previews ../
-            mv ./.git ../
-            cd ../ && rm -rf site-builds && mkdir site-builds && cd site-builds
-            mv ../.git ./.git
-            mv ../pr-previews ./pr-previews
+
+          # clean the directory - delete everything except for pr-previews and .git, a bit hacky really...
+          mkdir -p ./pr-previews
+          mkdir -p ./branch-previews
+          mv ./pr-previews ../
+          mv ./branch-previews ../
+          mv ./.git ../
+          cd ../ && rm -rf site-builds && mkdir site-builds && cd site-builds
+          mv ../.git ./.git
+          mv ../pr-previews ./pr-previews
+          mv ../branch-previews ./branch-previews
           
-            echo "Deploy!"
-            mv ../built-site/* ./
+          if [ "${event}" == "push" ]; then
+            echo "Branch! ${ref}"
+            rm -rf "./branch-previews/${ref}"
+            mv ../built-site/* "./branch-previews/${ref}/"
           elif [ "${event}" == "pull_request_target" ]; then
             echo "PR! ${pr}"
             rm -rf "./pr-previews/${pr}"
             if [ "${action}" != "closed" ]; then
               mkdir -p "./pr-previews/${pr}"
-              mv ../built-site/* ./pr-previews/${pr}/
+              mv ../built-site/* "./pr-previews/${pr}/"
             fi
           fi
 
@@ -167,6 +170,13 @@ jobs:
           repoSiteURL=$(echo ${{ github.repository }} | sed 's/\//.github.io\//')
           echo "repoSiteURL=$repoSiteURL" >> $GITHUB_ENV
 
+      - name: Structure Deployment # Put everything inside the `deployed` branch's folder
+        working-directory: ./site-builds
+        run: |
+          mkdir -p "./branch-previews/refs/heads/deployed" # just in case
+          mv "./branch-previews/refs/heads/deployed" ../deployed
+          mv "./*" ../deployed/
+
       - name: Checkout de-duplicate script # This way it's safe...
         uses: actions/checkout@v4
         with:
@@ -176,7 +186,7 @@ jobs:
           sparse-checkout-cone-mode: false
 
       - name: De-duplicate # I really wish GitHub supported hardlinks at least, this would have been much less painful...and save them space!
-        working-directory: ./site-builds
+        working-directory: ./deployed
         run: python3 ../script/.github/workflows/generate_pr_map.py
 
       - name: Setup Pages
@@ -185,7 +195,7 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           # Upload IDE site
-          path: './site-builds'
+          path: './deployed'
 
       - name: Deploy to GitHub Pages
         id: deployment
