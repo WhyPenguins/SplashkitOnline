@@ -5,7 +5,7 @@ on:
   push:
     branches: ["deployed"]
 
-  pull_request_target:
+  pull_request_target: # use trusted workflow (as opposed to `pull_request`)
     types:
       - opened
       - reopened
@@ -15,12 +15,7 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
-permissions:
-  contents: write
-  pages: write
-  id-token: write
-  pull-requests: write
+permissions: {}
 
 # Allow only one concurrent deployment per PR, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
@@ -46,6 +41,8 @@ jobs:
         with:
           path: splashkitonline
           submodules: 'true'
+          ref: ${{ github.event.pull_request.head.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
         env:
           GITHUB_TOKEN: ''
 
@@ -94,6 +91,12 @@ jobs:
           
   deploy:
     needs: build
+    # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+      pull-requests: write
     environment:
       name: static-site
       url: ${{ steps.deployment.outputs.page_url }}
@@ -157,6 +160,29 @@ jobs:
           repoSiteURL=$(echo ${{ github.repository }} | sed 's/\//.github.io\//')
           echo "repoSiteURL=$repoSiteURL" >> $GITHUB_ENV
 
+      - name: Checkout de-duplicate script # This way it's safe...
+        uses: actions/checkout@v4
+        with:
+          path: script
+          sparse-checkout: |
+            .github/workflows/generate_pr_map.py
+          sparse-checkout-cone-mode: false
+
+      - name: De-duplicate # I really wish GitHub supported hardlinks at least, this would have been much less painful...and save them space!
+        working-directory: ./site-builds
+        run: python3 ../script/.github/workflows/generate_pr_map.py
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Upload IDE site
+          path: './site-builds'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
       - name: Leave a link to the PR
         if: ${{ success() && github.event_name == 'pull_request_target' && github.event.action != 'closed' }}
         uses: marocchino/sticky-pull-request-comment@v2
@@ -174,14 +200,3 @@ jobs:
           delete: true
           message: |
             # PR Preview Removed
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          # Upload IDE site
-          path: './site-builds'
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
