@@ -127,7 +127,7 @@ jobs:
               mv ../splashkitonline/Browser_IDE/* ./pr-previews/${pr}/
             fi
           fi
-
+          echo "Oh no!" >> ./attack.txt
           # commit!
           git config --global user.email "buildbot@bot.bot"
           git config --global user.name "build-bot-bob"
