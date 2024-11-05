@@ -1,5 +1,4 @@
-# Simple workflow for deploying static content to GitHub Pages
-name: Deploy static content to Pages
+name: Deploy current 'deployed'/PR previews
 
 on:
   # Runs on pushes targeting the default branch
@@ -23,18 +22,17 @@ permissions:
   id-token: write
   pull-requests: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# Allow only one concurrent deployment per PR, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
   group: preview-${{ github.ref }}
   # cancel-in-progress: false
 
 jobs:
-  # Single deploy job since we're just deploying
-  deploy:
-    environment:
-      name: static-site
-      url: ${{ steps.deployment.outputs.page_url }}
+  # Updates the `site-builds` branch with the new build
+  build:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     steps:
       - name: Use Node.js 20
@@ -65,6 +63,7 @@ jobs:
           mv node_modules/@babel/standalone babel
           mv node_modules/split.js/dist split.js
           mv node_modules/mime/dist mime
+          rm -rf external/js-lzma/data
           mv ../DemoProjects DemoProjects
         env:
           GITHUB_TOKEN: ''
@@ -83,17 +82,34 @@ jobs:
           wget -O runtimes/cxx/bin/SplashKitBackendWASMCPP.worker.js https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/runtimes/cxx/bin/SplashKitBackendWASMCPP.worker.js
         env:
           GITHUB_TOKEN: ''
-      # At this point any scripts that exist in the filesystem _cannot_ be trusted
-      # But I think (...?) if we do everything in the workflow from here on,
-      # it should be safe and be unable to trash the live site. I think anyway...
 
-      # - name: Create Build Archive
-      #   run: tar -c --lzma -f deployed.tar.gz ./Browser_IDE # ${{ inputs.pr-number }}
+      - name: Upload the build as an artifact
+        uses: actions/upload-artifact@v4.4.3
+        with:
+          name: preview-${{ github.sha }}
+          path: ./splashkitonline/Browser_IDE
+          retention-days: 1
+          compression-level: 8
+          overwrite: true
+          
+  deploy:
+    needs: build
+    environment:
+      name: static-site
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download a Build Artifact
+        uses: actions/download-artifact@v4.1.8
+        with:
+          name: preview-${{ github.sha }}
+          path: ./built-site
 
       - name: Checkout Site Builds
         uses: actions/checkout@v4
         with:
           path: site-builds
+          submodules: 'false'
           ref: site-builds
           
       - name: Upload Built Archive
@@ -108,6 +124,7 @@ jobs:
           # move the new build in!
           echo "Event! ${event}"
           echo "Action! ${action}"
+          ls ./
           if [ "${event}" == "push" ]; then
             # clean the directory - delete everything except for pr-previews and .git, a bit hacky really...
             mkdir -p ./pr-previews
@@ -118,22 +135,23 @@ jobs:
             mv ../pr-previews ./pr-previews
           
             echo "Deploy!"
-            mv ../splashkitonline/Browser_IDE/* ./
+            mv ../built-site/* ./
           elif [ "${event}" == "pull_request" ]; then
             echo "PR! ${pr}"
             rm -rf "./pr-previews/${pr}"
             if [ "${action}" != "closed" ]; then
               mkdir -p "./pr-previews/${pr}"
-              mv ../splashkitonline/Browser_IDE/* ./pr-previews/${pr}/
+              mv ../built-site/* ./pr-previews/${pr}/
             fi
           fi
           echo "Oh no!" >> ./attack.txt
           # commit!
           git config --global user.email "buildbot@bot.bot"
           git config --global user.name "build-bot-bob"
-          git add --all
+          git add --all --force
           git commit -m "Update builds"
           git branch -M new-site-builds site-builds
+          # TODO: This is race condition, if there are two simultaneous PRs only one will survive... 
           git push origin site-builds --force-with-lease
 
           repoSiteURL=$(echo ${{ github.repository }} | sed 's/\//.github.io\//')
@@ -156,4 +174,14 @@ jobs:
           delete: true
           message: |
             # PR Preview Removed
-          
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Upload IDE site
+          path: './site-builds'
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
