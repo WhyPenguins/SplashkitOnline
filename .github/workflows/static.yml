@@ -40,6 +40,17 @@ jobs:
         env:
           GITHUB_TOKEN: ''
 
+      - name: setup compilation env
+        working-directory: ~/
+        run: |
+          sudo apt-get -qq update
+          sudo apt-get install -y build-essential cmake
+          git clone https://github.com/emscripten-core/emsdk.git
+          cd emsdk
+          ./emsdk install 3.1.48
+        env:
+          GITHUB_TOKEN: ''
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -47,6 +58,19 @@ jobs:
           submodules: 'true'
           ref: ${{ github.event.pull_request.head.ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
+        env:
+          GITHUB_TOKEN: ''
+
+      - name: compile binaries
+        working-directory: ~/
+        run: |
+          cd emsdk
+          ./emsdk activate 3.1.48
+          source ./emsdk_env.sh
+          wget -O ~/splashkitonline/SplashKitWasm/cmake/SplashKitWasm/prebuilt/sysroot.zip https://github.com/WhyPenguins/SplashkitOnline/tree/cxx_language_backend_binaries/SplashKitWasm/prebuilt/sysroot.zip
+          cd ~/splashkitonline/SplashKitWasm/cmake/
+          emcmake cmake -G "Unix Makefiles" -DENABLE_CPP_BACKEND=ON .
+          emmake make -j8
         env:
           GITHUB_TOKEN: ''
 
@@ -73,16 +97,16 @@ jobs:
       - name: download binaries
         working-directory: ./splashkitonline/Browser_IDE #python3 ./setup.py
         run: |
-          wget -O splashkit/splashkit_autocomplete.json https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/splashkit/splashkit_autocomplete.json
-          wget -O runtimes/javascript/bin/SplashKitBackendWASM.js https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/runtimes/javascript/bin/SplashKitBackendWASM.js
-          wget -O runtimes/javascript/bin/SplashKitBackendWASM.wasm https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/runtimes/javascript/bin/SplashKitBackendWASM.wasm
-          wget -O compilers/cxx/bin/wasi-sysroot.zip.lzma https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/compilers/cxx/bin/wasi-sysroot.zip.lzma
-          wget -O compilers/cxx/bin/clang++.js https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/compilers/cxx/bin/clang++.js
-          wget -O compilers/cxx/bin/clang.wasm.lzma https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/compilers/cxx/bin/clang.wasm.lzma
-          wget -O compilers/cxx/bin/wasm-ld.js https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/compilers/cxx/bin/wasm-ld.js
-          wget -O compilers/cxx/bin/lld.wasm.lzma https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/compilers/cxx/bin/lld.wasm.lzma
-          wget -O runtimes/cxx/bin/SplashKitBackendWASMCPP.js https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/runtimes/cxx/bin/SplashKitBackendWASMCPP.js
-          wget -O runtimes/cxx/bin/SplashKitBackendWASMCPP.worker.js https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/runtimes/cxx/bin/SplashKitBackendWASMCPP.worker.js
+          #wget -O splashkit/splashkit_autocomplete.json https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/splashkit/splashkit_autocomplete.json
+          #wget -O runtimes/javascript/bin/SplashKitBackendWASM.js https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/runtimes/javascript/bin/SplashKitBackendWASM.js
+          #wget -O runtimes/javascript/bin/SplashKitBackendWASM.wasm https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/runtimes/javascript/bin/SplashKitBackendWASM.wasm
+          #wget -O compilers/cxx/bin/wasi-sysroot.zip.lzma https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/compilers/cxx/bin/wasi-sysroot.zip.lzma
+          #wget -O compilers/cxx/bin/clang++.js https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/compilers/cxx/bin/clang++.js
+          #wget -O compilers/cxx/bin/clang.wasm.lzma https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/compilers/cxx/bin/clang.wasm.lzma
+          #wget -O compilers/cxx/bin/wasm-ld.js https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/compilers/cxx/bin/wasm-ld.js
+          #wget -O compilers/cxx/bin/lld.wasm.lzma https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/compilers/cxx/bin/lld.wasm.lzma
+          #wget -O runtimes/cxx/bin/SplashKitBackendWASMCPP.js https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/runtimes/cxx/bin/SplashKitBackendWASMCPP.js
+          #wget -O runtimes/cxx/bin/SplashKitBackendWASMCPP.worker.js https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/runtimes/cxx/bin/SplashKitBackendWASMCPP.worker.js
         env:
           GITHUB_TOKEN: ''
 
