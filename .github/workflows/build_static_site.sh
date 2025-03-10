@@ -1,6 +1,10 @@
 set -e
 #build_static_site.sh <sha> <workflow event_name> <username/repo>
 
+echo "Arg1: $1"
+echo "Arg2: $2"
+echo "Arg3: $3"
+
 # Do we need to build?
 cd ./splashkitonline
 # only build if the SplashKitWasm folder has changed, or if this was a push to a branch (so branches always build)
