@@ -1,4 +1,4 @@
-name: Deploy current 'deployed'/PR previews
+name: Assemble and Deploy Live Site
 
 on:
   workflow_run:

@@ -8,7 +8,7 @@ echo "Arg3: $3"
 # Do we need to build?
 cd ./splashkitonline
 # only build if the SplashKitWasm folder has changed, or if this was a push to a branch (so branches always build)
-if ! git diff --quiet $(git merge-base main "$1").."$1" -- SplashKitWasm &>/dev/null || [ "$2" == "push" ]; then
+if ! git diff --quiet $(git merge-base "origin/main" "$1").."$1" -- SplashKitWasm &>/dev/null || [ "$2" == "push" ]; then
     cd ../
 
     echo "========================================"

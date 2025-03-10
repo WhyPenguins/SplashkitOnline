@@ -131,6 +131,9 @@ jobs:
           
           python3 ../../script/.github/workflows/release.py "update" "${{ secrets.GITHUB_TOKEN }}" "${{ github.repository }}" "$tag_name" "${{ github.sha }}" yes "../../script/.github/workflows/release_assets.txt" "# Static Site Build ($tag_name)\nA static build of $tag_name, used in the live deployment :smiley:"
 
+          repoSiteURL=$(echo ${{ github.repository }} | sed 's/\//.github.io\//')
+          echo "repoSiteURL=$repoSiteURL" >> $GITHUB_ENV
+
       - name: Or delete the release...
         if: ${{ github.event_name == 'pull_request_target' && github.event.action == 'closed' }}
         working-directory: ./repo/built-site
