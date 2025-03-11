@@ -63,12 +63,14 @@ jobs:
       - name: Build static site
         working-directory: ./
         run: |
+          cd ./splashkitonline
           # only run the `build_static_site.sh` in the PR if the user changed it - otherwise use the latest in main.
           if ! git diff --quiet $(git merge-base "origin/main" "${{ github.sha }}").."${{ github.sha }}" -- .github/workflows/ &>/dev/null; then
             script_path="./splashkitonline/.github/workflows/build_static_site.sh" # use the PR's
           else
             script_path="./script/.github/workflows/build_static_site.sh" # use main's
           fi
+          cd ../
           echo "using $script_path"
 
           bash "$script_path" "${{ github.sha }}" "${{ github.event_name }}" "${{ github.repository }}"
