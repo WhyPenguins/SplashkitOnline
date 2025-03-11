@@ -8,6 +8,7 @@ on:
   pull_request_target: # use trusted workflow (as opposed to `pull_request`)
     types:
       - labeled # workaround for manual triggering...if we actually start using labels this might need to be removed
+      - unlabeled # same
       - opened
       - reopened
       - synchronize
