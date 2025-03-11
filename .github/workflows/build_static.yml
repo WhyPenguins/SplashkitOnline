@@ -52,10 +52,26 @@ jobs:
         env:
           GITHUB_TOKEN: ''
 
+      - name: Checkout scripts
+        uses: actions/checkout@v4
+        with:
+          path: script
+          sparse-checkout: |
+            .github/workflows/
+          sparse-checkout-cone-mode: false
+
       - name: Build static site
         working-directory: ./
         run: |
-          bash ./splashkitonline/.github/workflows/build_static_site.sh "${{ github.sha }}" "${{ github.event_name }}" "${{ github.repository }}"
+          # only run the `build_static_site.sh` in the PR if the user changed it - otherwise use the latest in main.
+          if ! git diff --quiet $(git merge-base "origin/main" "${{ github.sha }}").."${{ github.sha }}" -- .github/workflows/ &>/dev/null; then
+            script_path="./splashkitonline/.github/workflows/build_static_site.sh" # use the PR's
+          else
+            script_path="./script/.github/workflows/build_static_site.sh" # use main's
+          fi
+          echo "using $script_path"
+
+          bash "$script_path" "${{ github.sha }}" "${{ github.event_name }}" "${{ github.repository }}"
         env:
           GITHUB_TOKEN: ''
 
