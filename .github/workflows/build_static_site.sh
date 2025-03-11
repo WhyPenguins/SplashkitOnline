@@ -77,6 +77,7 @@ else
     echo "/split.js" >> "$EXCLUDE_FILE"
     echo "/mime" >> "$EXCLUDE_FILE"
     echo "/DemoProjects" >> "$EXCLUDE_FILE"
+    echo "/node_modules" >> "$EXCLUDE_FILE"
     
     cd ../
     
