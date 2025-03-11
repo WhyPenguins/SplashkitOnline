@@ -45,6 +45,7 @@ if ! git diff --quiet $(git merge-base "origin/main" "$1").."$1" -- SplashKitWas
     source ./emsdk_env.sh
     cd ../
     mkdir -p ./splashkitonline/SplashKitWasm/prebuilt/cxx/compiler/
+    mkdir -p ./splashkitonline/SplashKitWasm/out/cxx/compiler/ # this one is due to a mistake in old CMakeLists, can be removed soon
     # build this as well...
     wget -O ./splashkitonline/SplashKitWasm/prebuilt/cxx/compiler/sysroot.zip https://github.com/WhyPenguins/SplashkitOnline/raw/refs/heads/cxx_language_backend_binaries/SplashKitWasm/prebuilt/sysroot.zip
 
