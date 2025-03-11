@@ -63,9 +63,14 @@ jobs:
       - name: Build static site
         working-directory: ./
         run: |
+          GITHUB_SHA=${{ github.sha }}
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            GITHUB_SHA="${{ github.event.pull_request.head.sha }}"
+          fi
+
           cd ./splashkitonline
           # only run the `build_static_site.sh` in the PR if the user changed it - otherwise use the latest in main.
-          if ! git diff --quiet $(git merge-base "origin/main" "${{ github.sha }}").."${{ github.sha }}" -- .github/workflows/ &>/dev/null; then
+          if ! git diff --quiet $(git merge-base "origin/main" "$GITHUB_SHA").."$GITHUB_SHA" -- .github/workflows/ &>/dev/null; then
             script_path="./splashkitonline/.github/workflows/build_static_site.sh" # use the PR's
           else
             script_path="./script/.github/workflows/build_static_site.sh" # use main's
@@ -73,7 +78,7 @@ jobs:
           cd ../
           echo "using $script_path"
 
-          bash "$script_path" "${{ github.sha }}" "${{ github.event_name }}" "${{ github.repository }}"
+          bash "$script_path" "$GITHUB_SHA" "${{ github.event_name }}" "${{ github.repository }}"
         env:
           GITHUB_TOKEN: ''
 
