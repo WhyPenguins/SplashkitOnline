@@ -159,11 +159,11 @@ jobs:
 
       - name: Or delete the release...
         if: ${{ github.event_name == 'pull_request_target' && github.event.action == 'closed' }}
-        working-directory: ./repo/built-site
+        working-directory: ./repo
         run: |
           echo " PR Release Delete! ${{ github.ref_name }}"
           if [ github.event.action == "closed" ]; then
-            python3 ../../script/.github/workflows/release.py "delete" "${{ secrets.GITHUB_TOKEN }}" "${{ github.repository }}" "pr/${{ github.event.number }}"
+            python3 ../script/.github/workflows/release.py "delete" "${{ secrets.GITHUB_TOKEN }}" "${{ github.repository }}" "pr/${{ github.event.number }}"
           fi
 
       # The following bits assume the GitHub Pages site is about to be updated with this new release preview
