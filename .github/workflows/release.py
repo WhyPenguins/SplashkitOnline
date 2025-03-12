@@ -13,7 +13,7 @@ if sys.argv[1] == "update":
     assert len(sys.argv[1:]) == 8
     assert sys.argv[6] == "yes" or sys.argv[5] == "no"
 else:
-    assert len(sys.argv[1:]) == 5
+    assert len(sys.argv[1:]) == 4
 
 # Configuration
 GITHUB_TOKEN = sys.argv[2]
