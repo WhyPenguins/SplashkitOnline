@@ -76,7 +76,7 @@ def delete_existing_asset(release_id, asset_name):
 def delete_tag(tag_name):
     run_git_command("push", "--delete", REPO_URL, tag_name)
 def delete_release(release_id):
-    requests.delete(url = f"{API_BASE}/releases/{release_id}", headers=HEADERS)
+    requests.delete(f"{API_BASE}/releases/{release_id}", headers=HEADERS)
 
 if __name__ == "__main__":
     tag_name = sys.argv[4]
@@ -96,6 +96,7 @@ if __name__ == "__main__":
                     print(f"File not found: {file_path}")
     else:
         release = get_release(tag_name)
+        print("Deleting release:", release)
         if release:
             delete_release(release)
             delete_tag(tag_name)

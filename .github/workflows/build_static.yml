@@ -162,9 +162,7 @@ jobs:
         working-directory: ./repo
         run: |
           echo " PR Release Delete! ${{ github.ref_name }}"
-          if [ github.event.action == "closed" ]; then
-            python3 ../script/.github/workflows/release.py "delete" "${{ secrets.GITHUB_TOKEN }}" "${{ github.repository }}" "pr/${{ github.event.number }}"
-          fi
+          python3 ../script/.github/workflows/release.py "delete" "${{ secrets.GITHUB_TOKEN }}" "${{ github.repository }}" "pr/${{ github.event.number }}"
 
       # The following bits assume the GitHub Pages site is about to be updated with this new release preview
       - name: Leave a link on the PR
