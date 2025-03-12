@@ -8,7 +8,7 @@ import sys
 #release.py delete <token> <username/repo> <tag>
 print(sys.argv)
 assert len(sys.argv[1:]) > 1
-assert sys.argv[1] == "update", sys.argv[1] == "delete"
+assert sys.argv[1] == "update" or sys.argv[1] == "delete"
 if sys.argv[1] == "update":
     assert len(sys.argv[1:]) == 8
     assert sys.argv[6] == "yes" or sys.argv[5] == "no"
