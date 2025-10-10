@@ -288,7 +288,8 @@ class ExecutionEnvironment extends EventTarget{
             iframe.sandbox = 'allow-scripts allow-modals';
 
         container.appendChild(iframe);
-        iframe.src="executionEnvironment.html";
+        let page_url = new URL(window.location.href);
+        iframe.src="executionEnvironment.html"+page_url.search;
 
         iframe.style = "display: flex;flex: 1;/*! flex-grow: 1; */width: 100%;height: 100%;";
         iframe.focus();
@@ -304,7 +305,6 @@ class ExecutionEnvironment extends EventTarget{
                 runtimeSizeAprox: language.runtimeSizeAprox,
                 compilerSizeAprox: language.compilerSizeAprox,
                 needsServiceWorker: language.needsServiceWorker,
-                SKO: SKO,
             }, "*");
         }
         this.addEventListener("languageLoaderReady", f);
