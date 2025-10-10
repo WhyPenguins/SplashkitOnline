@@ -904,7 +904,6 @@ li.CodeMirror-hint-active {
 }
 .sk-embedded .sk-column {
   height: initial;
-  flex-grow: initial;
   width: 100%;
 }
 .sk-embedded .sk-main-columns {
@@ -912,6 +911,9 @@ li.CodeMirror-hint-active {
 }
 .sk-embedded #fileViewContainer {
   display:none;
+}
+.sk-embedded #codeViewContainer{
+  flex-grow: 0;
 }
 .sk-embedded #codeViewContainer .sk-header{
   display:none;
@@ -928,4 +930,14 @@ li.CodeMirror-hint-active {
 }
 .sk-embedded .collapse-button{
   display:none
+}
+
+#terminalOutputContainer{
+  flex-grow: 0;
+}
+.sk-embedded #terminalOutputContainer{
+  flex-grow: 1;
+}
+.sk-embedded #terminalOutputContainer .sk-header{
+  display:none;
 }

@@ -153,14 +153,18 @@ function ReportError(block, message, line, stacktrace ,formatted=false){
 
 let headerHeight = parseFloat(getComputedStyle(document.getElementsByClassName("sk-header")[0]).height.slice(0,-2));
 
-Split(['#canvasContainer', '#terminalOutputContainer'], {
-    direction: 'vertical',
-    sizes: [75, 25],
-    minSize: [100, headerHeight],
-    gutterSize: 5,
-    gutterAlign: 'center',
-    snapOffset: 20,
-});
+
+if (!SKO.useEmbeddedInterface) // no resizing/gutters in embedded
+{
+    Split(['#canvasContainer', '#terminalOutputContainer'], {
+        direction: 'vertical',
+        sizes: [75, 25],
+        minSize: [100, headerHeight],
+        gutterSize: 5,
+        gutterAlign: 'center',
+        snapOffset: 20,
+    });
+}
 
 function updateLoadingProgress(progress) {
     const progressBar = document.getElementById('loading-progress');
@@ -191,6 +195,24 @@ function showDownloadFailure() {
         progressBar.style.backgroundColor = 'red';
         loadingText.textContent = 'Download Failed';
     }
+}
+
+function showTerminal(){
+    document.getElementById("canvasContainer").style.display = "none";
+    document.getElementById("terminalOutputContainer").style.display = "flex";
+}
+function showCanvas(){
+    document.getElementById("canvasContainer").style.display = "flex";
+    document.getElementById("terminalOutputContainer").style.display = "none";
+}
+
+if (SKO.useEmbeddedInterface) {
+    document.body.classList.add("sk-minified");
+    document.body.classList.add("sk-embedded");
+
+    // setup terminal/window switching
+    document.getElementById("terminalCanvasSwitch").style.display = "initial";
+    showTerminal();
 }
 
 showLoadingContainer();
