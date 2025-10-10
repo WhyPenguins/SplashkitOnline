@@ -73,7 +73,7 @@ function handleEvent([event, args]){
             break;
         case "stdin":
             Module.intArrayFromString(args.value).forEach(function(v) {inputBuffer.push(v)});
-            inputBuffer.push(null);
+            inputBuffer[inputBuffer.length-1] = null;
             break;
         case "continue":
             break;
@@ -283,8 +283,19 @@ Module['onExit'] = function() {
 let inputBuffer = new Array(0);
 let inputBufferWasFull = false;
 
+// forces buffered output (e.g write("...") , no newline) to be printed
+function syncStdOut(){
+    // Refered to SplashKitBackendWASMCPP.worker.js
+    // FS.makedev(5, 0) gives the ID for stdin/stdout, found in createDefaultDevices (makedev just computes an ID, doesn't actually make a device)
+    // TTY.default_tty_ops.put_char only outputs when (val === null || val === 10)
+    // fsync forces buffer output
+    Module['TTY'].default_tty_ops.fsync(Module['TTY'].ttys[Module['FS'].makedev(5, 0)]);
+}
+
 Module['stdin'] = function() {
     if (inputBuffer.length == 0) {
+        syncStdOut();
+
         postCustomMessage({ type: "stdinAwait" });
 
         pauseLoop('stdin', false, true);
