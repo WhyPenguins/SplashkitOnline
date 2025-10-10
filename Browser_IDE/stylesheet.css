@@ -895,3 +895,37 @@ li.CodeMirror-hint-active {
   margin-top: 0.64em;
   opacity: 0.5;
 }
+
+
+/* embedded view */
+
+.sk-embedded>.sk-header {
+  display:none;
+}
+.sk-embedded .sk-column {
+  height: initial;
+  flex-grow: initial;
+  width: 100%;
+}
+.sk-embedded .sk-main-columns {
+  flex-direction: column; /*vertical view*/
+}
+.sk-embedded #fileViewContainer {
+  display:none;
+}
+.sk-embedded #codeViewContainer .sk-header{
+  display:none;
+}
+.sk-embedded .sk-contents{
+  height: initial;
+}
+.sk-embedded #codeViewContainer .CodeMirror-scroll{
+  height: initial;
+}
+
+.sk-embedded #runtimeContainer{
+  flex-grow: 1;
+}
+.sk-embedded .collapse-button{
+  display:none
+}

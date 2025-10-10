@@ -27,6 +27,7 @@ let SKO = (function(){
         language: getEnvParam("language", "JavaScript", false), /*don't decode, so + remains + rather than a space*/
         useCompressedBinaries: getEnvParam("useCompressedBinaries", "on", true) == "on",
         useMinifiedInterface: getEnvParam("useMinifiedInterface") == "on",
+        useEmbeddedInterface: getEnvParam("useEmbeddedInterface") == "on",
         isPRPreview: getEnvParam("isPRPreview", isPreview ? "on" : "off") == "on",
     };
 })();

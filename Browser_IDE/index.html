@@ -30,7 +30,7 @@
     <script src="codemirror-5.65.15/addon/fold/comment-fold.js"></script>
     <script src="split.js/split.min.js"></script>
     <script type="module">import mime from "./mime/src/index.js"; window.mime = mime;</script>
-	
+
 </head>
 <body class="sk-body">
 	<div class="sk-header">
@@ -55,7 +55,7 @@
 			<div class="sk-column">
 				<div class="sk-header sk-header-indent">
 					<div class="sk-header-title">
-						<button type="button" title="Collapse Files" onclick="collapseFileViewToggle()">
+						<button type="button"  class="collapse-button" title="Collapse Files" onclick="collapseFileViewToggle()">
 							<i class="bi bi-chevron-double-left"></i>
 						</button>
 						FILES
@@ -90,27 +90,25 @@
                 </div>
             </div>
 		</div>
-		<div id="runtimeContainer">
-			<div class="sk-column">
-				<div class="sk-header sk-header-indent">
-					<div class="flex-column">
-						<button type="button" id="restartProgram" style="display:none"><i class="bi bi-arrow-repeat">Restart</i></button>
-						<button type="button" id="continueProgram" style="display:none"><i class="bi bi-play-fill">Continue</i></button>
-						<button type="button" id="runProgram" class="run-program">
-							<i class="bi bi-gear-fill"></i>
-							<i class="bi bi-play-fill">Build and Run</i>
-						</button>
-						<button type="button" id="stopProgram" style="display:none"><i class="bi bi-pause-fill">Pause</i></button>
-					</div>
-					<div class="sk-header-title">
-						PROGRAM
-						<button type="button" title="Collapse Program" onclick="collapseProgramViewToggle()">
-							<i class="bi bi-chevron-double-right"></i>
-						</button>
-					</div>
+		<div class="sk-column" id="runtimeContainer">
+			<div class="sk-header sk-header-indent">
+				<div class="flex-column">
+					<button type="button" id="restartProgram" style="display:none"><i class="bi bi-arrow-repeat">Restart</i></button>
+					<button type="button" id="continueProgram" style="display:none"><i class="bi bi-play-fill">Continue</i></button>
+					<button type="button" id="runProgram" class="run-program">
+						<i class="bi bi-gear-fill"></i>
+						<i class="bi bi-play-fill">Build and Run</i>
+					</button>
+					<button type="button" id="stopProgram" style="display:none"><i class="bi bi-pause-fill">Pause</i></button>
 				</div>
-				<div class="sk-contents" id="ExecutionEnvironment">
+				<div class="sk-header-title">
+					PROGRAM
+					<button type="button" class="collapse-button" title="Collapse Program" onclick="collapseProgramViewToggle()">
+						<i class="bi bi-chevron-double-right"></i>
+					</button>
 				</div>
+			</div>
+			<div class="sk-contents" id="ExecutionEnvironment">
 			</div>
 			<div class="sk-collapsed-column sk-hidden">
 				<button type="button" title="Expand Program" onclick="collapseProgramViewToggle()"><i class="bi bi-terminal"></i></button>

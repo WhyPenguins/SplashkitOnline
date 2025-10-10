@@ -359,6 +359,9 @@ async function saveAllOpenCode() {
 }
 
 function createGutterSplitters(){
+    if (SKO.useEmbeddedInterface) // no resizing/gutters in embedded
+        return;
+
     var sizes = localStorage.getItem('sk-online-split-sizes')
 
     if (sizes) {
@@ -979,6 +982,10 @@ function setupMinifiedInterface() {
         // If the minification option is enabled, the files and program view should be collapsed by default
         collapseFileViewToggle();
         collapseProgramViewToggle();
+    }
+    if (SKO.useEmbeddedInterface) {
+        document.body.classList.add("sk-minified");
+        document.body.classList.add("sk-embedded");
     }
 }
 
