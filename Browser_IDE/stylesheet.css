@@ -941,3 +941,7 @@ li.CodeMirror-hint-active {
 .sk-embedded #terminalOutputContainer .sk-header{
   display:none;
 }
+
+.active-mini-tab {
+  color: #9fff69;
+}

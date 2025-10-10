@@ -3,13 +3,15 @@ var Module = {
     print: (function() {
         return function(text) {
             if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-            writeTerminal(text);
+            executionEnvironment.WriteToTerminal(text);
+            executionEnvironment.PreferTerminal();
         };
     })(),
     printErr: (function() {
         return function(text) {
             if (arguments.length > 1) text = Array.prototype.slice.call(arguments).join(' ');
-            writeTerminal(text);
+            executionEnvironment.WriteToTerminal(text);
+            executionEnvironment.PreferTerminal();
         };
     })(),
     canvas: (() => {
@@ -57,6 +59,9 @@ var Module = {
             case "stdinAwait":
                 setTerminalInputAwaitState(true);
                 break;
+            case "windowOpen":
+                executionEnvironment.PreferCanvas();
+                break;
             default:
                 console.log("Unexpected event in cxxRuntime.js!", event);
                 break;
@@ -102,6 +107,8 @@ class ExecutionEnvironmentInternalCXX extends ExecutionEnvironmentInternal{
         setTerminalInputAwaitState(false);
     }
     async runProgram(program){
+        this.RunProgramBase();
+
         await this.stopProgram();
 
         clearInterval(this.keepAliveID);

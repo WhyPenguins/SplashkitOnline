@@ -305,3 +305,12 @@ Module['stdin'] = function() {
 
     return character[0];
 }
+
+// attach to detect opening a window
+Module['preInit'] = function (){
+    let x = Module["GL"].createContext;
+    Module["GL"].createContext = function(...args){
+        postCustomMessage({ type: "windowOpen" });
+        return x(...args);
+    }
+}

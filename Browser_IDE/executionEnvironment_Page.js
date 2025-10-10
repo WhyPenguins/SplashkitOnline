@@ -197,13 +197,36 @@ function showDownloadFailure() {
     }
 }
 
-function showTerminal(){
+let outputViewLocked = false;
+
+function unlockOutputViewerSwitch(){
+    outputViewLocked = false;
+}
+
+function showTerminal(auto = true){
+    if (!SKO.useEmbeddedInterface) return;
+    if (auto && outputViewLocked) return;
+
     document.getElementById("canvasContainer").style.display = "none";
     document.getElementById("terminalOutputContainer").style.display = "flex";
+
+    document.getElementById("canvasButton").classList.remove("active-mini-tab");
+    document.getElementById("terminalButton").classList.add("active-mini-tab");
+
+    if (!auto) outputViewLocked = true;
 }
-function showCanvas(){
+
+function showCanvas(auto = true){
+    if (!SKO.useEmbeddedInterface) return;
+    if (auto && outputViewLocked) return;
+
     document.getElementById("canvasContainer").style.display = "flex";
     document.getElementById("terminalOutputContainer").style.display = "none";
+
+    document.getElementById("canvasButton").classList.add("active-mini-tab");
+    document.getElementById("terminalButton").classList.remove("active-mini-tab");
+
+    if (!auto) outputViewLocked = true;
 }
 
 if (SKO.useEmbeddedInterface) {
@@ -212,7 +235,7 @@ if (SKO.useEmbeddedInterface) {
 
     // setup terminal/window switching
     document.getElementById("terminalCanvasSwitch").style.display = "initial";
-    showTerminal();
+    showTerminal(true);
 }
 
 showLoadingContainer();

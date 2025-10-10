@@ -92,4 +92,16 @@ class ExecutionEnvironmentInternal {
     GetFilesystem() {
         parent.postMessage({type:"executionEnvironmentGetFilesystemRequest"},"*");
     }
+
+    RunProgramBase(){
+        unlockOutputViewerSwitch();
+    }
+
+    PreferCanvas() {
+        showCanvas(true);
+    }
+
+    PreferTerminal() {
+        showTerminal(true);
+    }
 }
