@@ -937,6 +937,14 @@ li.CodeMirror-hint-active {
   display:none;
 }
 
+.sk-embedded .sk-notification {
+  width: 15em;
+  padding: 0.1em;
+}
+.sk-embedded .sk-notification-body {
+  margin: 2px 0.5em 2px 0.5em;
+}
+
 .active-mini-tab {
   color: #9fff69;
 }
