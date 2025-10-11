@@ -108,6 +108,12 @@ this.sampleRate = AudioContextExt.sampleRate;
 """
 )
 
+# Fixes for more flexible stdout handling
+MakePatch(
+    "if (val === null || val === 10) {",
+    "if (val === null || val === 10 || tty.output.length > 20) {\n"+"            if (val != null) tty.output.push(val);"
+)
+
 inGlue += """
 }
 

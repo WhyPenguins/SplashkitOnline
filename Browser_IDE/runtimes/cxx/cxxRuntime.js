@@ -171,6 +171,10 @@ class ExecutionEnvironmentInternalCXX extends ExecutionEnvironmentInternal{
     async rmdir(path, recursive){
         await this.sendFSCommandToWorker({type:'rmdir', path, recursive});
     }
+
+    InputFromTerminal(message){
+        sendWorkerCommand("stdin", {value: message});
+    }
 }
 
 let executionEnvironment = null;
@@ -281,26 +285,6 @@ new ResizeObserver(function(){
     if (window.cloneObject != undefined)
         sendWorkerCommand("EmEvent", { target: 'canvas', boundingClientRect: cloneObject(Module.canvas.getBoundingClientRect()) });
 }).observe(Module.canvas);
-
-// send terminal input on enter
-let terminalInput = document.getElementById("terminal-input");
-
-function setTerminalInputAwaitState(awaiting) {
-    if (awaiting)
-        terminalInput.placeholder = 'awaiting input...';
-    else
-        terminalInput.placeholder = '';
-}
-
-terminalInput.addEventListener("keydown", function(event){
-    if (event.key === "Enter") {
-        writeTerminal("> " + terminalInput.value);
-        sendWorkerCommand("stdin", {value: terminalInput.value + '\n'});
-
-        terminalInput.value = '';
-        setTerminalInputAwaitState(false);
-    }
-});
 
 runtimeLoadingProgress(1);
 

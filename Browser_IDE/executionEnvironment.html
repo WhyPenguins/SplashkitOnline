@@ -28,10 +28,10 @@
 				<button id="clearButton" onclick="clearTerminal()">Clear</button>
 			</div>
 			<div class="sk-contents">
-				<div id="output" class="sk-contents sk-contents-darker sk-terminal"></div>
-				<div class="sk-terminal-input-wrapper">
-					<span style="color: #CCC">&gt; </span>
-					<input type="text" id="terminal-input" />
+				<div id="outputPanel" style="display: block;" class="sk-contents sk-contents-darker sk-terminal">
+					<span id="output"></span>
+					<span contenteditable spellcheck="false" id="terminal-input" style="outline: none;"></span>
+					<span id="terminal-input-hint" style="opacity:0.5;"></span>
 				</div>
 			</div>
 		</div>

@@ -1,13 +1,33 @@
 "use strict";
 
+let terminalPanel = document.getElementById('outputPanel');
 let terminalElement = document.getElementById('output');
+let terminalInput = document.getElementById("terminal-input");
+let terminalInputHint = document.getElementById("terminal-input-hint");
 let terminalHead = undefined;
+
+
+function setTerminalInputAwaitState(awaiting) {
+    if (awaiting)
+        terminalInputHint.innerText = 'awaiting input...';
+    else
+        terminalInputHint.innerText = ' '; // space to ensure the line is at least the right height
+}
+
+function resetTerminalInput(){
+    terminalInput.innerHTML = '';
+    terminalInputHint.style.display = 'initial';
+    setTerminalInputAwaitState(false);
+}
 
 function clearTerminal() {
     terminalElement.innerHTML = "";
     terminalElement.insertAdjacentHTML('beforeend', "<div><span></span><br></div>");
     terminalHead = terminalElement.lastChild;
+
+    resetTerminalInput();
 }
+
 clearTerminal();
 
 function writeTerminalSpan(head, text, classList){
@@ -31,7 +51,7 @@ function writeTerminal(text, escapeSpecialCharacters = true){
             let textArgs = Array.prototype.slice.call(arguments, 0, -1);
             text = textArgs.join(' ');
         }
-        
+
         // Escape special characters if needed
         if (escapeSpecialCharacters) {
             text = escapeHtml(text);
@@ -39,14 +59,14 @@ function writeTerminal(text, escapeSpecialCharacters = true){
 
         let sections = text.split("\x1b[");
 
-        let newTerminalHead = document.createElement("div");
-        let curFmtClasses = terminalHead.lastChild.previousSibling.className.split(/,| /).filter(s=>s);
+        let newTerminalHead = document.createElement("span");
+        let curFmtClasses = terminalHead.lastChild.className.split(/,| /).filter(s=>s);
 
         // We can immediately insert all the text before the first control sequence,
         // as no styling needs to be changed yet.
         writeTerminalSpan(newTerminalHead, sections[0], curFmtClasses);
         sections.splice(0, 1);
-                            
+
         sections = sections.map(s => {
             let i = s.indexOf("m");
 
@@ -72,13 +92,12 @@ function writeTerminal(text, escapeSpecialCharacters = true){
             writeTerminalSpan(newTerminalHead, fmtText, fmtClasses);
         }
 
-        newTerminalHead.appendChild(document.createElement("br"));
-
         terminalHead = newTerminalHead;
         terminalElement.appendChild(newTerminalHead);
 
-        terminalElement.scrollTop = terminalElement.scrollHeight; // focus on bottom
+        terminalPanel.scrollTop = terminalPanel.scrollHeight; // focus on bottom
     }
+    terminalInput.focus();
 }
 
 window.addEventListener("print", async function(ev) {
@@ -88,6 +107,70 @@ window.addEventListener("print", async function(ev) {
 document.getElementById("canvas").addEventListener("click", async function () {
     document.getElementById("canvas").focus();
 });
+
+
+/* Bunch of code to make the user unable to type in previous parts of the terminal,
+ * while still allowing selecctions. Might be a neater way of doing it?
+ * Also handles actually sending the text, in 'keydown'
+ */
+function moveCursorToEnd() {
+    const range = document.createRange();
+    const sel = window.getSelection();
+
+    // Place cursor at the end
+    range.selectNodeContents(terminalInput);
+    range.collapse(false);
+
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    terminalInput.focus();
+};
+
+terminalPanel.addEventListener("keydown", (e) => {
+    // send terminal input on enter
+    if (e.key === "Enter") {
+        let text = terminalInput.innerText + "\n";
+        writeTerminal(text);
+        executionEnvironment.InputFromTerminal(text);
+
+        resetTerminalInput();
+        e.preventDefault();
+    }
+
+    // Block most navigation keys
+    const blockedKeys = [
+        "ArrowLeft",
+        "ArrowUp",
+        "ArrowRight",
+        "ArrowDown",
+        "Home",
+        "PageUp",
+        "PageDown"
+    ];
+
+    if (blockedKeys.includes(e.key)) {
+        e.preventDefault();
+    }
+
+    moveCursorToEnd();
+});
+
+terminalPanel.addEventListener("focus", moveCursorToEnd);
+terminalPanel.addEventListener("input", function(){
+    // update hint text when typed
+    terminalInputHint.style.display = terminalInput.innerText.length > 0 ? 'none' : 'initial';
+
+    moveCursorToEnd();
+});
+
+terminalPanel.addEventListener("mouseup", (e) => {
+    if (window.getSelection().getRangeAt(0).collapsed)
+        moveCursorToEnd();
+});
+
+
+
 
 // Convenience function for reporting errors, printing them to the terminal
 // and also sending a message to the main window.

@@ -85,6 +85,8 @@ class ExecutionEnvironmentInternal {
         writeTerminal(message);
     }
 
+    InputFromTerminal(message) { throw new Error("Unhandled InputFromTerminal"); }
+
     Reload() {
         parent.postMessage({type:"executionEnvironmentReloadRequest"},"*");
     }
@@ -95,6 +97,8 @@ class ExecutionEnvironmentInternal {
 
     RunProgramBase(){
         unlockOutputViewerSwitch();
+        if (SKO.useEmbeddedInterface)
+            clearTerminal();
     }
 
     PreferCanvas() {
