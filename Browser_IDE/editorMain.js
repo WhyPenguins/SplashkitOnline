@@ -1644,6 +1644,23 @@ function AddWindowListeners(){
                     });
                 }
                 break;
+            case "EnterBlockEditMode":
+                LoadProjectQueue.Schedule("EnterBlockEditMode", async function (){
+                    for (let i = 0; i < m.data.files.length; i ++) {
+                        let file = m.data.files[i];
+                        let editor = getCodeEditor(file.path);
+                        if (!editor){
+                            await openCodeEditor(file.path); //TODO: perhaps openCodeEditor should return the code editor...?
+                            editor = getCodeEditor(file.path);
+                        }
+                        if (editor){
+                            editor.enterBlockEditMode(file.blocks, m.data.styles);
+                        } else {
+                            console.error("Failed to load file " + file.path + " while in EnterBlockEditMode", m.data);
+                        }
+                    }
+                });
+                break;
         }
     }, false);
     parent.postMessage({type:"SplashKitOnlineListening"}, "*");
