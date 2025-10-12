@@ -961,6 +961,10 @@ li.CodeMirror-hint-active {
   margin: 2px 0.5em 2px 0.5em;
 }
 
+.sk-embedded .embedded-hide{
+  display: none;
+}
+
 .active-mini-tab {
   color: #9fff69;
 }
