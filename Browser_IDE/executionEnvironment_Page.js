@@ -98,6 +98,7 @@ function writeTerminal(text, escapeSpecialCharacters = true){
         terminalPanel.scrollTop = terminalPanel.scrollHeight; // focus on bottom
     }
     terminalInput.focus();
+    showTerminal();
 }
 
 window.addEventListener("print", async function(ev) {

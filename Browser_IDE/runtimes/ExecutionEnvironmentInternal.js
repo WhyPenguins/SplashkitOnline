@@ -39,6 +39,9 @@ class ExecutionEnvironmentInternal {
         this.channel.setEventListener("WriteToTerminal", async function (data){
             self.WriteToTerminal(data.message);
         });
+        this.channel.setEventListener("ClearTerminal", async function (data){
+            self.ClearTerminal(data.message);
+        });
         this.channel.setEventListener("RunProgram", async function (data){
             await self.runProgram(data.program);
         });
@@ -85,6 +88,10 @@ class ExecutionEnvironmentInternal {
         writeTerminal(message);
     }
 
+    ClearTerminal(message) {
+        clearTerminal();
+    }
+
     InputFromTerminal(message) { throw new Error("Unhandled InputFromTerminal"); }
 
     Reload() {
@@ -98,7 +105,7 @@ class ExecutionEnvironmentInternal {
     RunProgramBase(){
         unlockOutputViewerSwitch();
         if (SKO.useEmbeddedInterface)
-            clearTerminal();
+            self.clearTerminal();
     }
 
     PreferCanvas() {

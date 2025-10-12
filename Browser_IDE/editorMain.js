@@ -604,7 +604,7 @@ function updateCodeExecutionState(){
 }
 
 function reportCompilationError(error){
-    executionEnviroment.reportError(error.name, error.line, error.message, error.formatted);
+    executionEnviroment.reportError(error.name, error.line, error.message+"\n", error.formatted);
 }
 
 function setupCodeEditorCallbacks() {
@@ -761,6 +761,10 @@ function audioFunctionNotification(source) {
 async function runProgram(){
     try {
         clearErrorLines();
+
+        if (SKO.useEmbeddedInterface)
+            await executionEnviroment.clearTerminal();
+
        // the notification object returned by displayEditorNotification
         const notificationMessage = activeLanguageSetup.compiled ? "Compiling project..." : "Building project...";
         let currentNotification = displayEditorNotification(notificationMessage,NotificationIcons.CONSTRUCTION,-1);   

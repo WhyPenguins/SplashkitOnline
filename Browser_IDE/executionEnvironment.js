@@ -278,6 +278,11 @@ class ExecutionEnvironment extends EventTarget{
             message: message,
         }, "*");
     }
+    clearTerminal() {
+        this.iFrame.contentWindow.postMessage({
+            type: "ClearTerminal",
+        }, "*");
+    }
 
     _constructiFrame(container, language){
         this.readyForExecution = false;
