@@ -42,6 +42,11 @@ class CodeViewer {
         tabArea.appendChild(this.tab);
 
         this.editor = this.setupCodeArea(editorElem);
+
+        // for block edit mode
+        this.allBlocks = null; // non-null means in block mode
+        this.editableBlocks = null;
+        this.editableBlocksMap = null;
     }
 
     showRenameInput() {
@@ -193,6 +198,160 @@ class CodeViewer {
             window.dispatchEvent(errEv);
             return;
         }
+    }
+
+    __styleEditableBlocksHighlights(){
+        for(const block of this.editableBlocks){
+            let upperLine = block.from().line;
+            let lowerLine = block.to().line;
+
+            for (let i = upperLine; i <= lowerLine ; i++){
+                this.editor.addLineClass(i, "wrap", "editable-block-line");
+            }
+        }
+    }
+    __styleEditableBlocksHRs(){
+        for(const block of this.editableBlocks){
+            let upperLine = block.from().line;
+            let lowerLine = block.to().line;
+
+            let upperHR = elem("hr", {class: "editable-block-line-hr"});
+            let lowerHR = elem("hr", {class: "editable-block-line-hr"});
+
+            block.upperHR = this.editor.addLineWidget(upperLine-1, upperHR, {above: false});
+            block.lowerHR = this.editor.addLineWidget(lowerLine+1, lowerHR, {above: true});
+        }
+    }
+
+    inBlockEditMode(){
+        return this.allBlocks != null;
+    }
+
+    getBlockText(blockName){
+        if (!this.inBlockEditMode()) return null;
+
+        let block = this.editableBlocksLookup.get(blockName);
+        if (block == null) return null;
+
+        return block.getText();
+    }
+
+    exitBlockEditMode(){
+        if (!this.inBlockEditMode()) return;
+
+        // remove all styling
+        for(const block of this.editableBlocks){
+            let upperLine = block.from().line;
+            let lowerLine = block.to().line;
+
+            for (let i = upperLine; i <= lowerLine ; i++){
+                this.editor.removeLineClass(i, "wrap", "editable-block-line");
+            }
+
+            if (block.hasOwnProperty("upperHR")) {
+                block.upperHR.clear();
+                block.lowerHR.clear();
+            }
+        }
+
+        for(const block of this.allBlocks){
+            block.block.clear();
+        }
+        this.allBlocks = null;
+        this.editableBlocks = null;
+        this.editableBlocksLookup = null;
+    }
+
+    enterBlockEditMode(editableBlocks/*[{name: "",lineStart:..., lineEnd:...}]*/, styles=["hr", "highlight"]/*hr|highlight|*/) {
+        if (this.inBlockEditMode()) return;
+
+        let codeViewerThis = this;
+
+        // we'll mark the text _between_ blocks as read-only, then apply
+        // styling to the blocks. Text in the blocks can be extracted from
+        // between the marked regions
+        this.editableBlocksLookup = new Map();
+        this.editableBlocks = [];
+        this.allBlocks = [] // store readonly and editable blocks in-order, maybe useful?
+
+        const lastOne = 999999999999; // I don't like this either, but it's much easier than the alternatives...
+
+        let lastReadonlyLine = 0;
+        for (let i = 0; i <= editableBlocks.length; i ++){
+            let isLastBlock = i == editableBlocks.length;
+
+            // we have a fake 'last block' past the end of the text, to handle marking the last read-only region
+            let block = (!isLastBlock) ? editableBlocks[i] : {lineStart: lastOne, lineEnd: lastOne};
+
+            if (!block.lineStart || !block.lineEnd){
+                console.error("Bad usage"); //easy to type startLine/endLine by accident...
+                exitBlockEditMode();
+                return;
+            }
+
+            // from 1-indexing to 0-indexing
+            block.lineStart --;
+            block.lineEnd --;
+
+            let readonlyRegion = this.editor.markText(
+                { line: lastReadonlyLine, ch: i== 0 ? 0 : lastOne },
+                { line: block.lineStart, ch: 0 },
+                {
+                    readOnly: true,
+                    atomic: true,
+                    inclusiveLeft: i == 0,
+                    inclusiveRight: isLastBlock,
+                    className:'read-only-line',
+                }
+            );
+            this.allBlocks.push({readonly: true, block: readonlyRegion});
+
+            if (isLastBlock) // not a real block
+                break
+
+            let editableRegion = this.editor.markText(
+                { line: block.lineStart-1, ch: lastOne },// start it at the last character of the read-only block - prevents the
+                { line: block.lineEnd, ch: lastOne },    // region from being destroyed when the last character is erased
+                { readOnly: false, inclusiveLeft: true, inclusiveRight: true }
+            );
+            this.allBlocks.push({readonly: false, block: editableRegion});
+
+            let editableBlock = {
+                editableRegion: editableRegion,
+                name: block.name,
+                from() { return {line: this.editableRegion.find().from.line + 1, ch: 0}; }, // +1 since we make the first line the last character of the previous block
+                to(){ return this.editableRegion.find().to; },
+                getText() { return codeViewerThis.editor.getRange(this.from(), this.to()); },
+            };
+            this.editableBlocksLookup.set(block.name, editableBlock);
+            this.editableBlocks.push(editableBlock);
+
+            lastReadonlyLine = block.lineEnd;
+        }
+
+        for (let i = 0; i < styles.length; i ++){
+            let style = styles[i];
+
+            if (style == "highlight") {
+                // re-apply when new lines are added
+                this.editor.on('change', function(cm, change) {
+                    if (change.text.length > 1)
+                        codeViewerThis.__styleEditableBlocksHighlights();
+                });
+                this.__styleEditableBlocksHighlights();
+            }
+            else if (style == "hr") {
+                this.__styleEditableBlocksHRs();
+            }
+        }
+
+        // block pasting :)
+        this.editor.on("beforeChange", function(event, change) {
+            if (change.origin == "paste"){
+                displayEditorNotification("You'll learn better if you type it yourself :)", NotificationIcons.INFO, 6);
+                change.cancel();
+            }
+        })
     }
 
     close() {

@@ -523,6 +523,20 @@ textarea {
     background-color: #6c514f;
 }
 
+.read-only-line{
+    opacity:0.8;
+}
+
+.editable-block-line {
+  /*border-inline-start: #8bdc74 solid;*/
+  box-shadow: inset 3px 0px 0px #8bdc74;
+  background-color: rgba(255,255,255,0.04);
+  transition: box-shadow, background-color 1s;
+}
+.editable-block-line-hr {
+    border: 1px rgb(139 220 116 / 79%) inset
+}
+
 /* make the CodeMirror theme match the rest of the UI a little more */
 .cm-s-dracula.CodeMirror, .cm-s-dracula .CodeMirror-gutters {
     background-color: #24262d !important;
