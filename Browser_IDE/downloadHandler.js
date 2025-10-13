@@ -75,15 +75,38 @@ async function downloadFile(url, progressCallback = null, maybeLZMACompressed = 
 
     // First try downloading the LZMA version
     if (wlzma && maybeLZMACompressed && SKO.useCompressedBinaries) {
-        let exists = false;
         try {
-            await XMLHttpRequestPromise(url+".lzma", null, "HEAD");
-            exists = true;
-        }
-        catch (err) {}
+            let headers = await XMLHttpRequestPromise(url+".lzma", null, "HEAD");
 
-        // seems alright, let's try downloading it properly!
-        if (exists) {
+
+            // seems alright, let's try downloading it properly!
+            // let's first see if we've cached it already...
+            let canCache = headers.getAllResponseHeaders().indexOf("last-modified") >= 0;
+            let validTimestamp = null;
+            let cache = null;
+
+            // only try if we can verify it's the right file via timestamp (so we don't have old versions cached)
+            if (canCache) {
+                validTimestamp = headers.getResponseHeader("last-modified");
+
+                cache = await caches.open('SKO-Cache');
+                const cachedResponses = await cache.matchAll(url, {ignoreVary : true, ignoreSearch: true});
+
+                let found = null;
+                for (const response of cachedResponses){
+                    if (found == null && response.headers.get("Vary") == validTimestamp)
+                        found = response;
+                    else
+                        await cache.delete(url);
+                }
+
+                if (found) {
+                    progressCallback(1);
+                    return new Uint8Array(await found.arrayBuffer());
+                }
+            }
+
+            // Not cached - alright let's download and decompress'
             let decompressionPercentage = 0.2;
             let downloadPercentage = 1.0 - decompressionPercentage;
             let downloadProgressCallback = (progressCallback==null) ? null : function(percentage) { progressCallback(percentage * downloadPercentage); };
@@ -92,8 +115,14 @@ async function downloadFile(url, progressCallback = null, maybeLZMACompressed = 
             let decompressProgressCallback = (progressCallback==null) ? null : function(percentage) { progressCallback(downloadPercentage + percentage * decompressionPercentage); };
             let result = (await wlzma.decode(compressed.response, decompressProgressCallback)).toUint8Array();
 
+            // save the decompressed version in cache - avoid the delay next time!
+            if (canCache) {
+                await cache.put(url, new Response(result, {headers: {"Vary": validTimestamp}}));
+            }
+
             return result;
         }
+        catch (err) {}
     }
 
     return new Uint8Array((await XMLHttpRequestPromise(url, progressCallback, "GET")).response);
