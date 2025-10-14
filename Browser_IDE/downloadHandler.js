@@ -111,7 +111,7 @@ async function downloadFile(url, progressCallback = null, maybeLZMACompressed = 
                 }
                 catch (err) {
                     // log the error and stop trying to cache
-                    console.error("Failed to cache: ", err);
+                    console.error("Failed to open and/or check cache: ", err);
                     canCache = false;
                 }
             }
@@ -127,7 +127,13 @@ async function downloadFile(url, progressCallback = null, maybeLZMACompressed = 
 
             // save the decompressed version in cache - avoid the delay next time!
             if (canCache) {
-                await cache.put(url, new Response(result, {headers: {"Vary": validTimestamp}}));
+                // can also fail - if out of space for instance
+                try {
+                    await cache.put(url, new Response(result, {headers: {"Vary": validTimestamp}}));
+                }
+                catch (err) {
+                    console.error("Failed to save to cache: ", err);
+                }
             }
 
             return result;
