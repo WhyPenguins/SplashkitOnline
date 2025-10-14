@@ -87,22 +87,32 @@ async function downloadFile(url, progressCallback = null, maybeLZMACompressed = 
 
             // only try if we can verify it's the right file via timestamp (so we don't have old versions cached)
             if (canCache) {
-                validTimestamp = headers.getResponseHeader("last-modified");
-
-                cache = await caches.open('SKO-Cache');
-                const cachedResponses = await cache.matchAll(url, {ignoreVary : true, ignoreSearch: true});
-
-                let found = null;
-                for (const response of cachedResponses){
-                    if (found == null && response.headers.get("Vary") == validTimestamp)
-                        found = response;
-                    else
-                        await cache.delete(url);
+                // Failing to cache shouldn't make the download fail
+                // Can fail due to security contexts, old Firefox bugs, etc
+                try {
+                    validTimestamp = headers.getResponseHeader("last-modified");
+    
+                    cache = await caches.open('SKO-Cache');
+                    const cachedResponses = await cache.matchAll(url, {ignoreVary : true, ignoreSearch: true});
+    
+                    let found = null;
+                    for (const response of cachedResponses){
+                        if (found == null && response.headers.get("Vary") == validTimestamp)
+                            found = response;
+                        else
+                            await cache.delete(url);
+                    }
+    
+                    if (found) {
+                        if (progressCallback != null)
+                            progressCallback(1);
+                        return new Uint8Array(await found.arrayBuffer());
+                    }
                 }
-
-                if (found) {
-                    progressCallback(1);
-                    return new Uint8Array(await found.arrayBuffer());
+                catch (err) {
+                    // log the error and stop trying to cache
+                    console.error("Failed to cache: ", err);
+                    canCache = false;
                 }
             }
 
