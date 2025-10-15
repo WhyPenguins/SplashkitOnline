@@ -40,7 +40,7 @@ async function rerouteURL(url){
 }
 
 
-function XMLHttpRequestPromise(url, progressCallback, type="GET") {
+function XMLHttpRequestPromise(url, progressCallback, type="GET", streamOut=null) {
     return new Promise(async function (resolve, reject) {
         let req = new XMLHttpRequest();
         req.responseType = 'arraybuffer';
@@ -49,6 +49,8 @@ function XMLHttpRequestPromise(url, progressCallback, type="GET") {
             req.addEventListener("progress", function(event) {
                 if (event.lengthComputable && event.target.status == 200)
                     progressCallback(event.loaded / event.total);
+                if (streamOut && event.target.response)
+                    streamOut(event.target.response);
             }, false);
 
         req.addEventListener("loadend", function(event) {
@@ -60,6 +62,8 @@ function XMLHttpRequestPromise(url, progressCallback, type="GET") {
             }
             if (progressCallback != null)
                 progressCallback(1);
+            if (streamOut)
+                streamOut(event.target.response);
             resolve(event.target);
         }, false);
 
@@ -117,13 +121,45 @@ async function downloadFile(url, progressCallback = null, maybeLZMACompressed = 
             }
 
             // Not cached - alright let's download and decompress'
-            let decompressionPercentage = 0.2;
-            let downloadPercentage = 1.0 - decompressionPercentage;
-            let downloadProgressCallback = (progressCallback==null) ? null : function(percentage) { progressCallback(percentage * downloadPercentage); };
-            let compressed = await XMLHttpRequestPromise(url+".lzma", downloadProgressCallback, "GET");
+            let downloadProgressCallback = (progressCallback==null) ? null : function(percentage) { progressCallback(percentage); };
+            let chunks = [];
 
-            let decompressProgressCallback = (progressCallback==null) ? null : function(percentage) { progressCallback(downloadPercentage + percentage * decompressionPercentage); };
-            let result = (await wlzma.decode(compressed.response, decompressProgressCallback)).toUint8Array();
+            // we use a custom .lzma format - the file is split into chunks, with an int at the front of each for the compressed length
+            let expectedLength = null;
+            let bufferStart = 0;
+            let compressed = await XMLHttpRequestPromise(url+".lzma", downloadProgressCallback, "GET", function(response){
+                while(true) {
+                    if (expectedLength == null) {
+                        if (response.byteLength - bufferStart < 4)
+                            return;
+
+                        expectedLength = (new DataView(response.slice(bufferStart, bufferStart+4))).getUint32(0, true);
+                        bufferStart += 4;
+                    } else {
+                        if (response.byteLength - bufferStart < expectedLength)
+                            return;
+
+                        chunks.push(wlzma.decode(response.slice(bufferStart, bufferStart+expectedLength), function(x){}).then((x)=>x.toUint8Array()));
+                        bufferStart += expectedLength;
+                        expectedLength = null;
+                    }
+                }
+            });
+
+            // wait for all chunks to decode and get the total length
+            let totalSize = 0;
+            for (let i = 0; i < chunks.length ; i ++){
+                chunks[i] = await chunks[i];
+                totalSize += chunks[i].length;
+            }
+
+            // merge all the chunks
+            let result = new Uint8Array(totalSize);
+            let offset = 0;
+            for (let i = 0; i < chunks.length ; i ++){
+                result.set(chunks[i], offset);
+                offset += chunks[i].length;
+            };
 
             // save the decompressed version in cache - avoid the delay next time!
             if (canCache) {
@@ -138,7 +174,7 @@ async function downloadFile(url, progressCallback = null, maybeLZMACompressed = 
 
             return result;
         }
-        catch (err) {}
+        catch (err) { console.error("Failed to download compressed version: ", err); }
     }
 
     return new Uint8Array((await XMLHttpRequestPromise(url, progressCallback, "GET")).response);
