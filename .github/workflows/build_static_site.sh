@@ -12,14 +12,11 @@ if ! git diff --quiet $(git merge-base "origin/main" "$1").."$1" -- SplashKitWas
     echo "========================================"
     mkdir -p ./splashkitonline/SplashKitWasm/prebuilt/cxx/compiler/
     cd ./splashkitonline/SplashKitWasm/prebuilt/cxx/compiler/
-    wget -O clang++.js https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/compilers/cxx/bin/clang++.js
-    wget -O clang.wasm.lzma https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/compilers/cxx/bin/clang.wasm.lzma
-    wget -O wasm-ld.js https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/compilers/cxx/bin/wasm-ld.js
-    wget -O lld.wasm.lzma https://raw.githubusercontent.com/WhyPenguins/SplashkitOnline/github-live/Browser_IDE/compilers/cxx/bin/lld.wasm.lzma
+    wget -O "tmp.zip" "https://github.com/WhyPenguins/splashkit-online-clang-wasm/releases/download/release%2Fmain/release.zip"
+    unzip "tmp.zip"
+    rm "tmp.zip"
+    # TODO: Make sysroot an output of the clang-wasm repo
     wget -O sysroot.zip https://github.com/WhyPenguins/SplashkitOnline/raw/refs/heads/cxx_language_backend_binaries/SplashKitWasm/prebuilt/sysroot.zip
-    # decompress them - silly since they'll just be re-compressed again, but it is what it is for now...
-    xz -d clang.wasm.lzma
-    xz -d lld.wasm.lzma
 
     cd ../../../../../
 

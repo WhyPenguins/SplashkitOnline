@@ -48,8 +48,8 @@ class RequiredFile {
     }
 }
 
-const thothTechRepoPath = "http://github.com/thoth-tech/SplashkitOnline/raw/"
-const WhyPenguinsRepoPath = "http://github.com/WhyPenguins/SplashkitOnline/raw/"
+const splashKitOnlinePath = "https://whypenguins.github.io/SplashkitOnline/"
+const clangWasmPath = "https://github.com/WhyPenguins/splashkit-online-clang-wasm/"
 
 const jsRuntimeDir = "runtimes/javascript/bin"
 const cxxCompilerDir = "compilers/cxx/bin"
@@ -57,23 +57,23 @@ const cxxRuntimeDir = "runtimes/cxx/bin"
 
 const requiredFiles = [
     // Language-agnostic files
-    new RequiredFile(thothTechRepoPath, "binaries/Browser_IDE/splashkit/splashkit_autocomplete.json", "splashkit"),
+    new RequiredFile(splashKitOnlinePath, "splashkit/splashkit_autocomplete.json", "splashkit"),
     
     // JS files
-    new RequiredFile(thothTechRepoPath, "binaries/Browser_IDE/splashkit/SplashKitBackendWASM.js", jsRuntimeDir),
-    new RequiredFile(thothTechRepoPath, "binaries/Browser_IDE/splashkit/SplashKitBackendWASM.wasm", jsRuntimeDir),
+    new RequiredFile(splashKitOnlinePath, "runtimes/javascript/bin/SplashKitBackendWASM.js", jsRuntimeDir),
+    new RequiredFile(splashKitOnlinePath, "runtimes/javascript/bin/SplashKitBackendWASM.wasm", jsRuntimeDir),
 
     // C++ files
-    new RequiredFile(WhyPenguinsRepoPath, "cxx-audio-support-binaries/Browser_IDE/compilers/cxx/bin/compiler.zip", cxxCompilerDir, async () => {
-        // Unpack and delete compiler.zip
-        console.log("Extracting " + cxxCompilerDir + "/compiler.zip" + "...");
-        await extract(cxxCompilerDir + "/compiler.zip", {dir: path.resolve(cxxCompilerDir)});
-        fs.unlinkSync(cxxCompilerDir + "/compiler.zip");
-        console.log("Extracted " + cxxCompilerDir + "/compiler.zip");
+    new RequiredFile(clangWasmPath, "releases/download/release%2Fmain/release.zip", cxxCompilerDir, async () => {
+        // Unpack and delete release.zip
+        console.log("Extracting " + cxxCompilerDir + "/release.zip" + "...");
+        await extract(cxxCompilerDir + "/release.zip", {dir: path.resolve(cxxCompilerDir)});
+        fs.unlinkSync(cxxCompilerDir + "/release.zip");
+        console.log("Extracted " + cxxCompilerDir + "/release.zip");
     }),
-    new RequiredFile(WhyPenguinsRepoPath, "cxx-audio-support-binaries/Browser_IDE/compilers/cxx/bin/wasi-sysroot.zip", cxxCompilerDir),
-    new RequiredFile(WhyPenguinsRepoPath, "cxx-audio-support-binaries/Browser_IDE/runtimes/cxx/bin/SplashKitBackendWASMCPP.js", cxxRuntimeDir),
-    new RequiredFile(WhyPenguinsRepoPath, "cxx-audio-support-binaries/Browser_IDE/runtimes/cxx/bin/SplashKitBackendWASMCPP.worker.js", cxxRuntimeDir)
+    new RequiredFile(splashKitOnlinePath, "compilers/cxx/bin/wasi-sysroot.zip.lzma", cxxCompilerDir),
+    new RequiredFile(splashKitOnlinePath, "runtimes/cxx/bin/SplashKitBackendWASMCPP.js", cxxRuntimeDir),
+    new RequiredFile(splashKitOnlinePath, "runtimes/cxx/bin/SplashKitBackendWASMCPP.worker.js", cxxRuntimeDir)
 ];
 
 exports.run = async function(){
