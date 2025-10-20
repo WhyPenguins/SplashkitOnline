@@ -161,7 +161,7 @@ class ActionQueue extends EventTarget {
             try {
                 await this.current.promise;
             } catch (err){
-                console.error("    Current task ended with error:");
+                console.error("    Current task (" + action.name + ") ended with error:");
                 console.error(err);
             }
 
