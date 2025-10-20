@@ -1,7 +1,7 @@
 "use strict";
 
 
-async function ShowProjectLoader(title, getChoices){
+async function ShowProjectLoader(title, getChoices, load){
     let closeButton = elem('button', {type:"button"}, [elem('i', {class: "bi bi-x-lg"}, [])]);
 
     let loadingText =
@@ -46,29 +46,30 @@ async function ShowProjectLoader(title, getChoices){
             let set = elem('div', {class: "sk-demo-thumbnail-grid", id:"DemoChooser"}, []);
             for(let j = 0 ; j < choices[i].length; j ++){
                 let item = choices[i][j];
+
+                let image = [];
+                if (item["thumbnail"])
+                    image = [elem('img', {src: item["thumbnail"], class: "sk-demo-thumbnail-img"})];
+
                 let thumbnail =
-                    elem('div', {class: "sk-demo-thumbnail"}, [
-                        elem('img', {src: item["thumbnail"], class: "sk-demo-thumbnail-img"}),
+                    elem('div', {class: "sk-demo-thumbnail"}, [...image, ...[
                         elem('div', {class: "sk-header sk-header-indent sk-demo-tags"}, [
                             elem('div', {class: "sk-demo-tag"}, [item["language"]]),
                         ]),
                         elem('div', {class: "sk-header sk-header-indent sk-demo-title"}, [
                             item["title"]
                         ]),
-                    ]);
+                    ]]);
                 set.appendChild(thumbnail);
 
                 thumbnail.addEventListener('click', async function(){
                     removeFadeOut(loaderWindow, 200);
 
                     //TODO: Improve - this is barely visible.
-                    if (activeLanguage.name != item["language"])
+                    if (activeLanguage && activeLanguage.name != item["language"])
                         displayEditorNotification("Switching language to " + item["language"] + "<br>Page will reload.", NotificationIcons.INFO);
 
-                    let reroutedURL = await rerouteURL(item["file"]);
-
-                    scheduleLoadProjectFromURL(reroutedURL);
-                    schedulePotentialLanguageSwitch(item["language"]);
+                    load(item);
                 });
             }
             gridContainer.appendChild(set);
@@ -78,6 +79,7 @@ async function ShowProjectLoader(title, getChoices){
         mainRows.appendChild(gridContainer);
     }
     catch(e){
+        console.error(e);
         loadingText.childNodes[0].innerText = "Failed to load demo project list, sorry!";
     }
 }
@@ -86,4 +88,20 @@ function LoadDemoProjects(){
     return fetch("DemoProjects/metadata/demos.json").then(res => res.json()).then(async json => {
         return json;
     });
+}
+
+async function LoadProjects(){
+    let projects = await appStorage.access(async (s) => {
+        return await s.getAllProjects();
+    });
+    let projectsListing = [];
+    for (let project of projects){
+        projectsListing.push({
+            title: project.name,
+            language: project.language,
+            file: project.id,
+            thumbnail: null
+        });
+    }
+    return [projectsListing]
 }

@@ -1135,6 +1135,11 @@ function setupIDEButtonEvents() {
             scheduleLoadProjectFromURL(reroutedURL);
         });
     }));
+    setupProjectButton("LoadProject", () => ShowProjectLoader("Load a project:", LoadProjects, async function (project){
+        InitializeProjectQueue.Schedule("ProjectReInitialization", async function (isCanceled){
+            await LoadProject(project["file"], undefined, isCanceled);
+        });
+    }));
 }
 
 function setupProjectButton(buttonId, callback) {

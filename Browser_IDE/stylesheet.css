@@ -26,6 +26,9 @@ input, button, textarea, select {
 p, h1, h2, h3, h4, h5, h6 {
   overflow-wrap: break-word;
 }
+hr {
+  border-color: #404040;
+}
 
 #root, #__next {
   isolation: isolate;
@@ -289,6 +292,7 @@ textarea {
     background:none;
     justify-content: end;
     box-shadow: none;
+    z-index: 1;
 }
 
 .sk-demo-tag{
@@ -315,6 +319,7 @@ textarea {
     position:relative;
     transition: filter 0.1s;
     cursor:pointer;
+    min-height: 2em;
 }
 .sk-demo-thumbnail:hover{
     filter:brightness(125%);
