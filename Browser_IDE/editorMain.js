@@ -1763,7 +1763,30 @@ function AddWindowListeners(){
                     }
                 });
                 break;
+
+            case "RenameProject":
+                ImportToProjectQueue.Schedule("RenameProject", async function (){
+                    await appStorage.access((s)=>s.renameProject(storedProject.projectID, m.data.name));
+                });
+                break;
+
+            case "ShowMessage":
+                ImportToProjectQueue.Schedule("RenameProject", async function (){
+                    ShowMessagePopup(parseBasicFormatting(m.data.title), parseBasicFormatting(m.data.message), undefined, m.data.block);
+                    if (m.data.block) {
+                        // prevents any warnings about access from other tabs
+                        storedProject.detachFromProject();
+                    }
+                });
+                break;
         }
     }, false);
-    parent.postMessage({type:"SplashKitOnlineListening"}, "*");
+
+    const SplashKitOnlineMessageType = "SplashKitOnline";
+
+    parent.postMessage({type:SplashKitOnlineMessageType, event:"Listening"}, "*");
+
+    storedProject.addEventListener("attached", function () {
+        parent.postMessage({type:SplashKitOnlineMessageType, event:"ProjectLoaded", projectID: storedProject.projectID}, "*");
+    })
 }

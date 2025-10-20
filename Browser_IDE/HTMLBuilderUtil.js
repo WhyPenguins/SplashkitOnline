@@ -26,6 +26,14 @@ function elemFromText(text) {
     return new DOMParser().parseFromString(text, "text/html").body;
 }
 
+// TODO: Improve - maybe Markdown style behaviour could be good?
+function parseBasicFormatting(text){
+    if (typeof text != "string")
+        return text;
+
+    return elemFromText(escape(text).replace("\n", "<br/>"))
+}
+
 // from https://github.com/janl/mustache.js/blob/master/mustache.js#L73
 var entityMap = {
     '&': '&amp;',
