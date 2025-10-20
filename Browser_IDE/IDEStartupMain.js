@@ -125,6 +125,13 @@ async function StartIDE() {
             // if loading/creating by name
             if (SKO.initializeProjectName){
                 let project = await appStorage.getProjectByName(SKO.initializeProjectName);
+
+                if (SKO.cleanProject && project){
+                    await appStorage.access((s) => s.deleteProject(project.id));
+                    await storedProject.deleteProject(project.id);
+                    project = null;
+                }
+
                 if (!project)
                     projectID = await appStorage.createProject(SKO.initializeProjectName, SKO.language);
                 else
