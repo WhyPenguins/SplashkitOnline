@@ -1473,7 +1473,7 @@ function openProjectFile(filename) {
 
 async function scheduleLoadProjectFromURL(url){
     ImportToProjectQueue.Schedule("loadProjectFromURL", async function (isCanceled){
-        return fetch(url).then(res => res.blob()).then(async blob => {
+        return fetch(url).then(res => res.arrayBuffer()).then(async blob => {
             await projectFromZip(blob, isCanceled);
 
             await isCanceled();
