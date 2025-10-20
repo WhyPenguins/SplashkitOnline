@@ -427,7 +427,7 @@ async function updateNoEditorsMessage() {
 }
 
 async function openCodeEditors(editorLimit = 3) {
-    let sourceFiles = await findAllSourceFiles();
+    let sourceFiles = await findAllCompilableFiles();
 
     if (sourceFiles.length > editorLimit) {
         updateNoEditorsMessage();
