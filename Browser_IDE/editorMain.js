@@ -855,16 +855,17 @@ let audioNotification = null;
 // This is a hack to detect if the user has clicked into the iFrame
 // If they do, we set a flag to prevent the audio notification from showing and remove it if it's already showing
 // The timeout is to ensure that the activeElement is set correctly, essentially we're telling the browser to wait one tick before checking
-if (SKO.language == "C++") {
-    window.addEventListener("blur", () => {
+
+window.addEventListener("blur", () => {
+    if (activeLanguage && activeLanguage.name == "C++") {
         setTimeout(() => {
             if (document.activeElement.id == "iframetest") {
                 audioNotificationRunOnce = true;
                 if (audioNotification != null) audioNotification.deleteNotification();
             }
         });
-    });
-}
+    }
+});
 
 function audioFunctionNotification(source) {
     // Audio functions
@@ -938,7 +939,7 @@ async function runProgram(){
 
         async function mapBit(filename){
             let source = await fileAsString(await storedProject.access((project) => project.readFile(filename)));
-            if (SKO.language == "C++" && !audioNotificationRunOnce) audioNotification = audioFunctionNotification(source);
+            if (activeLanguage.name == "C++" && !audioNotificationRunOnce) audioNotification = audioFunctionNotification(source);
             return {
                 name: filename,
                 source: source
