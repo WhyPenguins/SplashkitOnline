@@ -1,40 +1,93 @@
 "use strict";
 
+function ShowPopupGeneric({titleContent, innerContent, buttons=[], showCloseButton=true}){
+    let resolveAndClose = null;
+    let result = new Promise((resolve) => {
+        resolveAndClose = function(x){
+            removeFadeOut(loaderWindow, 200);
+            resolve(x);
+        }
 
-async function ShowProjectLoader(title, getChoices, load){
-    let closeButton = elem('button', {type:"button"}, [elem('i', {class: "bi bi-x-lg"}, [])]);
+        let closeButton;
+        if (showCloseButton)
+            closeButton = elem('button', {type:"button", class: "sk-demo-window-close-button"}, [elem('i', {class: "bi bi-x-lg"}, [])]);
 
-    let loadingText =
-        elem('div', {class: "sk-demo-window-loading-text", id:"DemoChooserLoader", style:{'position':'absolute'}}, [
-            elem('h2', {style:{'text-align':'center'}}, ["Loading..."])
-        ]);
-
-    let mainRows =
+        let mainRows =
         elem('div', {class: "sk-column"}, [
-            elem('div', {class: "sk-header sk-header-indent"}, [
+            elem('div', {class: "sk-demo-window-header"}, [
                 elem('div', {class: "flex-column"}, [
-                    title
+                    titleContent
                 ]),
-                elem('div', {class: "flex-column"}, [
+                elem('div', {class: "flex-column"}, showCloseButton? [
                     closeButton,
-                ]),
+                ] : []),
             ]),
-            loadingText,
+            elem('div', {class: "sk-demo-window-content"}, [
+                innerContent,
+            ]),
+            elem('div', {class: "sk-demo-window-buttons"}, buttons.map(function (x, i) {
+                let button = elem('button', {class: x.class+" btn"}, x.text);
+                button.addEventListener("click", function(){
+                    resolveAndClose(i);
+                });
+                return button;
+            }))
         ]);
 
-    let loaderWindow =
+        let loaderWindow =
         elem('div', {class: "sk-main-columns sk-demo-window-container fade-on-create"}, [
-            elem('div', {class: "sk-notification sk-notification-body sk-contents sk-contents-focusable sk-demo-window", tabindex: "10"}, [
+            elem('div', {class: "sk-notification sk-contents sk-contents-focusable sk-demo-window"}, [
                 mainRows,
             ]),
         ]);
 
-    closeButton.addEventListener('click', function(){
-        removeFadeOut(loaderWindow, 200);
-    });
+        if (showCloseButton)
+            closeButton.addEventListener('click', function(){
+                resolveAndClose(-1);
+            });
 
-    // show the window
-    document.body.appendChild(loaderWindow);
+        document.body.appendChild(loaderWindow);
+    })
+
+    return {
+        result: result,
+        resolve: resolveAndClose
+    }
+}
+
+async function ShowConfirmationPopup(title, innerContent, yesText = "Yes", noText = "No", recommendNo=false){
+    return await (ShowPopupGeneric({
+        titleContent:title,
+        innerContent:innerContent,
+        buttons: [
+            {text:yesText, class: recommendNo?"sk-demo-delete":"sk-demo-tag"},
+            {text:noText, class: recommendNo?"sk-demo-tag":"sk-demo-delete"},
+        ],
+        showCloseButton: false}
+    ).result) == 0;
+}
+
+async function ShowMessagePopup(title, innerContent, okayText = "Okay"){
+    return await (ShowPopupGeneric({
+        titleContent:title,
+        innerContent:innerContent,
+        buttons: [
+            {text:okayText, class: "sk-demo-tag"},
+        ],
+        showCloseButton: true}
+    ).result);
+}
+
+async function ShowProjectLoader(title, getChoices, load){
+    let container = elem('div', {}, []);
+
+    let loadingText = elem('div', {class: "sk-demo-window-loading-text", id:"DemoChooserLoader", style:{'position':'absolute'}}, [
+        elem('h2', {style:{'text-align':'center'}}, ["Loading..."])
+    ]);
+
+    container.appendChild(loadingText);
+
+    let popup = ShowPopupGeneric({titleContent:title, innerContent:container});
 
     // wait for our choices to download, then show them
     try {
@@ -63,11 +116,10 @@ async function ShowProjectLoader(title, getChoices, load){
                 set.appendChild(thumbnail);
 
                 thumbnail.addEventListener('click', async function(){
-                    removeFadeOut(loaderWindow, 200);
+                    popup.resolve();
 
-                    //TODO: Improve - this is barely visible.
                     if (activeLanguage && activeLanguage.name != item["language"])
-                        displayEditorNotification("Switching language to " + item["language"] + "<br>Page will reload.", NotificationIcons.INFO);
+                        displayEditorNotification("Switching language to " + item["language"] + "<br>Page will reload.", NotificationIcons.INFO, -1);
 
                     load(item);
                 });
@@ -76,7 +128,7 @@ async function ShowProjectLoader(title, getChoices, load){
             gridContainer.appendChild(elem("hr"));
         }
 
-        mainRows.appendChild(gridContainer);
+        container.appendChild(gridContainer);
     }
     catch(e){
         console.error(e);

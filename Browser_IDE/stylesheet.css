@@ -246,16 +246,49 @@ textarea {
     position:fixed;
     height:100%;
     z-index:1000;
-    padding: 10% 20%;
     /*backdrop-filter: blur(1px) brightness(80%);*/
     background-color: #0005;
 }
 
 .sk-demo-window{
     position:relative;
-    height: 100%;
-    margin:auto;
+    margin:auto !important;
     pointer-events:initial;
+    flex-grow: 0;
+    border-radius: 10px;
+    max-height: 100vh;
+    width: auto !important;
+    min-width: min(30em, 90vw);
+
+    background-color: #1f1f1fb3;
+    backdrop-filter: blur(2px) opacity(0.9);
+}
+.sk-demo-window .sk-column{
+  height: auto;
+}
+
+.sk-demo-window-close-button{
+  position: absolute;
+  right: 1em;
+}
+.sk-demo-window-buttons{
+  text-align: center;
+}
+
+.sk-demo-window-content{
+  text-align: center;
+  margin-top: 1em;
+  margin-bottom: 1em;
+  overflow-y: auto;
+}
+
+.sk-demo-window-header {
+  display: flex;
+  padding: 0px 10px 0px 0px;
+  justify-content: center;
+  height: 2em;
+  border-bottom: #404040 1px inset;
+  font-weight: 800;
 }
 
 .sk-demo-window-loading-text{
@@ -302,6 +335,15 @@ textarea {
     line-height: 1.5em;
     margin-top: 0.25em;
     padding: 0px 10px;
+}
+
+.sk-demo-delete{
+  background-color: #372424;
+  border-radius: 5px;
+  color: #ff0000;
+  padding: 0 5px;
+  line-height: 1.75em;
+  margin-top: 0.25em;
 }
 
 .sk-demo-title{
@@ -828,7 +870,7 @@ li.CodeMirror-hint-active {
   transition: background-color 0.3s, box-shadow 0.3s;
   box-shadow: 3px 3px 6px rgba(0,0,0,0.2);
   line-height: 1em;
-  padding: 0.5em;
+  padding: 0.5em 1em;
 }
 
 .btn:last-child {
