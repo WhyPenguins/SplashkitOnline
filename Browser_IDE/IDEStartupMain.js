@@ -140,7 +140,12 @@ async function StartIDE() {
                     return s.getLastOpenProject();
                 })
 
-                if (!projectID)
+                // check if it still exists
+                let project = null;
+                if (projectID)
+                    await appStorage.getProject(projectID);
+
+                if (!project)
                     projectID = await appStorage.createProject(undefined, SKO.language);
             }
 

@@ -78,7 +78,7 @@ async function ShowMessagePopup(title, innerContent, okayText = "Okay"){
     ).result);
 }
 
-async function ShowProjectLoader(title, getChoices, load){
+async function ShowProjectLoader(title, getChoices, load, {deleteFunc = null} = {}){
     let container = elem('div', {}, []);
 
     let loadingText = elem('div', {class: "sk-demo-window-loading-text", id:"DemoChooserLoader", style:{'position':'absolute'}}, [
@@ -89,9 +89,21 @@ async function ShowProjectLoader(title, getChoices, load){
 
     let popup = ShowPopupGeneric({titleContent:title, innerContent:container});
 
+    //TODO: This is really lazy
+    function reloadChoices(){
+        popup.resolve();
+        ShowProjectLoader(title, getChoices, load, {deleteFunc});
+    }
+
     // wait for our choices to download, then show them
     try {
         let choices = await getChoices();
+
+        if (choices.reduce((x,y) => x + y.length) == 0){
+            loadingText.childNodes[0].innerText = "Nothing to show!";
+            return;
+        }
+
         removeFadeOut(loadingText, 200);
 
         let gridContainer = elem('div', {class: "sk-contents sk-demo-thumbnail-grid-container fade-on-create", id:"DemoChooser"}, []);
@@ -104,9 +116,29 @@ async function ShowProjectLoader(title, getChoices, load){
                 if (item["thumbnail"])
                     image = [elem('img', {src: item["thumbnail"], class: "sk-demo-thumbnail-img"})];
 
+                let buttons = [];
+                if (deleteFunc){
+                    let button = elem('div', {class: "sk-demo-delete"}, [elem('i', {class:"bi bi-trash"}, [])]);
+                    buttons.push(
+                        button,
+                        elem('div', {style: {"flex-grow": "1"}}, []) //padding
+                    );
+                    button.addEventListener('click', async function(e){
+                        e.stopPropagation();
+                        e.preventDefault();
+
+                        if (await ShowConfirmationPopup("Really delete?", elemFromText("<b>Are you sure you want to delete " + escape(item["title"]) + "?<br> This cannot be undone!")))
+                        {
+                            if (await deleteFunc(item))
+                                reloadChoices();
+                        }
+                    });
+                }
+
                 let thumbnail =
                     elem('div', {class: "sk-demo-thumbnail"}, [...image, ...[
                         elem('div', {class: "sk-header sk-header-indent sk-demo-tags"}, [
+                            ...buttons,
                             elem('div', {class: "sk-demo-tag"}, [item["language"]]),
                         ]),
                         elem('div', {class: "sk-header sk-header-indent sk-demo-title"}, [

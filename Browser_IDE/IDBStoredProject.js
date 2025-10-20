@@ -62,7 +62,8 @@ class IDBStoredProject extends EventTarget{
             res.onsuccess = function(){resolve();};
         }));
 
-        this.detachFromProject();
+        if (_projectID == this.projectID)
+            this.detachFromProject();
     }
 };
 

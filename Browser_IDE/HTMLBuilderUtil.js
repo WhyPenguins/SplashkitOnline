@@ -26,6 +26,24 @@ function elemFromText(text) {
     return new DOMParser().parseFromString(text, "text/html").body;
 }
 
+// from https://github.com/janl/mustache.js/blob/master/mustache.js#L73
+var entityMap = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+    '/': '&#x2F;',
+    '`': '&#x60;',
+    '=': '&#x3D;'
+};
+
+function escape (string) {
+    return String(string).replace(/[&<>"'`=\/]/g, function fromEntityMap (s) {
+        return entityMap[s];
+    });
+}
+
 // Thanks alvarodms!
 // https://stackoverflow.com/a/33424474
 function removeFadeOut( el, speed ) {

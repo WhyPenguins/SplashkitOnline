@@ -680,7 +680,7 @@ let storedProject = null;
 let unifiedFS = null;
 
 async function mirrorProject(){
-    if (!activeLanguageSetup.persistentFilesystem)
+    if (!activeLanguageSetup || !activeLanguageSetup.persistentFilesystem)
         return;
 
     // Mirror project to execution environment
@@ -750,7 +750,7 @@ function updateCodeExecutionState(){
     if (InitializeProjectQueue.isClear() &&
         MirrorProjectQueue.isClear() &&
         ImportToProjectQueue.isClear() &&
-        getCompiler(activeLanguageSetup.compilerName) &&
+        (activeLanguageSetup && getCompiler(activeLanguageSetup.compilerName)) &&
         executionEnviroment.readyForExecution
     ){
         executionEnviroment.updateCompilerLoadProgress(1);
@@ -1120,9 +1120,9 @@ function setupIDEButtonEvents() {
 
     setupProjectButton("DownloadProject", downloadProject);
     setupProjectButton("NewProject", async function () {
-        let projectID = await appStorage.createProject(undefined, activeLanguage.name);
+        let projectID = await appStorage.createProject(undefined, activeLanguage ? activeLanguage.name : undefined);
         InitializeProjectQueue.Schedule("ProjectReInitialization", async function (isCanceled){
-            await LoadProject(projectID, activeLanguageSetup.getDefaultProject(), isCanceled);
+            await LoadProject(projectID, undefined, isCanceled);
         });
     });
     setupProjectButton("LoadDemo", () => ShowProjectLoader("Choose a demo project:", LoadDemoProjects, async function(demo){
@@ -1139,6 +1139,15 @@ function setupIDEButtonEvents() {
         InitializeProjectQueue.Schedule("ProjectReInitialization", async function (isCanceled){
             await LoadProject(project["file"], undefined, isCanceled);
         });
+    }, {
+        deleteFunc : async function (project) {
+            if (project["file"] == storedProject.projectID){
+                UnloadProject();
+            }
+            await appStorage.access((s) => s.deleteProject(project["file"]));
+            await storedProject.deleteProject(project["file"]);
+            return true;
+        }
     }));
 }
 
