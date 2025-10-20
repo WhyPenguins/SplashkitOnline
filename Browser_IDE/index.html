@@ -30,9 +30,17 @@
     <script src="codemirror-5.65.15/addon/fold/comment-fold.js"></script>
     <script src="split.js/split.min.js"></script>
     <script type="module">import mime from "./mime/src/index.js"; window.mime = mime;</script>
-
 </head>
 <body class="sk-body">
+	<script src="splashKitOnlineEnvParams.js"></script>
+	<script>
+		// Inline script to avoid page flicker on load...
+		if (SKO.useEmbeddedInterface) {
+			document.body.classList.add("sk-minified");
+			document.body.classList.add("sk-embedded");
+		}
+	</script>
+
 	<div class="sk-header">
 		<ul class="sk-menu">
 			<li><img src="splashkit_logo.webp" style="width:2em; height:2em;"></li>
@@ -128,7 +136,6 @@
 	</div>
 </body>
 
-<script src="splashKitOnlineEnvParams.js"></script>
 <script src="downloadHandler.js"></script>
 <script src="compilers/compiler.js"></script>
 <script src="languageDefinitions.js"></script>
