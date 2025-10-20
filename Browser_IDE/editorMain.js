@@ -1342,7 +1342,13 @@ async function projectToZip(){
         }
 
         await addFolderToZip(tree, "/",zip);
-        return zip.generateAsync({type:"blob"});
+        return zip.generateAsync({
+            type:"blob",
+            compression: "DEFLATE",
+            compressionOptions: {
+                level: 7
+            }
+        });
     } catch(err){
         let errEv = new Event("filesystemError");
         errEv.shortMessage = "Export failed";
