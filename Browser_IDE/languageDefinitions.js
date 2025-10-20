@@ -48,7 +48,7 @@ let SplashKitOnlineLanguageDefinitions = [
     },
     {
         name: "C++",
-        userVisibleName: "C++ (Experimental)",
+        userVisibleName: "C++",
         aliases: ['CXX','C'],
         sourceExtensions: ['c', 'h', 'cpp', 'hpp', 'cc'],
         compilableExtensions: ['cpp', 'c', 'cc'],
