@@ -751,7 +751,7 @@ function enableCodeExecution(){
 function updateCodeExecutionState(){
     if (InitializeProjectQueue.isClear() &&
         MirrorProjectQueue.isClear() &&
-        LoadProjectQueue.isClear() &&
+        ImportToProjectQueue.isClear() &&
         getCompiler(activeLanguageSetup.compilerName) &&
         executionEnviroment.readyForExecution
     ){
@@ -1412,9 +1412,9 @@ function openProjectFile(filename) {
 }
 
 async function scheduleLoadProjectFromURL(url){
+    ImportToProjectQueue.Schedule("loadProjectFromURL", async function (isCanceled){
     scheduleProjectReInitialization(function(){});
 
-    LoadProjectQueue.Schedule("loadProjectFromURL", async function (isCanceled){
         return fetch(url).then(res => res.blob()).then(async blob => {
             await projectFromZip(blob, isCanceled);
 
@@ -1433,7 +1433,7 @@ async function scheduleUploadProjectFromInput(){
 
     scheduleProjectReInitialization(function(){});
 
-    LoadProjectQueue.Schedule("uploadProjectFromInput", async function (isCanceled){
+    ImportToProjectQueue.Schedule("uploadProjectFromInput", async function (isCanceled){
         await projectFromZip(file, isCanceled);
 
         await isCanceled();
@@ -1637,7 +1637,7 @@ function AddWindowListeners(){
                     await initializeFromFileList(storedProject, m.data.files)
                 });
                 if (m.data.zips) {
-                    LoadProjectQueue.Schedule("InitializeProjectFromOutsideWorld_ProjectFromZip", async function (){
+                    ImportToProjectQueue.Schedule("InitializeProjectFromOutsideWorld_ProjectFromZip", async function (){
                         // load from requested zips
                         for(let i = 0; i < m.data.zips.length; i ++) {
                             await projectFromZip(m.data.zips[i].data);
@@ -1646,7 +1646,7 @@ function AddWindowListeners(){
                 }
                 break;
             case "EnterBlockEditMode":
-                LoadProjectQueue.Schedule("EnterBlockEditMode", async function (){
+                ImportToProjectQueue.Schedule("EnterBlockEditMode", async function (){
                     for (let i = 0; i < m.data.files.length; i ++) {
                         let file = m.data.files[i];
                         let editor = getCodeEditor(file.path);

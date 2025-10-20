@@ -29,7 +29,7 @@ let InitializeProjectQueue = new ActionQueue("InitializeProjectQueue", {
 
 // These cancel if the project is re-initialized/loaded
 // Can have multipled scheduled - they don't cancel eachother out'
-/* Note: LoadProjectQueue actions use the UnifiedFS - so they write to both the
+/* Note: ImportToProjectQueue actions use the UnifiedFS - so they write to both the
          project FS and the transient FS in the ExecutableEnvironment.
          We mirror inbetween 'Init'ing the project, and Loading data into it.
 */
@@ -40,12 +40,12 @@ let MirrorProjectQueue = new ActionQueue("MirrorProjectQueue", {
     waitOn: [InitializeProjectQueue],
     cancelOn: [InitializeProjectQueue],
 });
-let LoadProjectQueue = new ActionQueue("LoadProjectQueue", {
+let ImportToProjectQueue = new ActionQueue("ImportToProjectQueue", {
     cancelRunning: false,
     replaceQueued: false,
     maxQueued: 100,
     waitOn: [ExecutionEnvironmentLoadQueue, InitializeProjectQueue, MirrorProjectQueue],
-    cancelOn: [InitializeProjectQueue, ExecutionEnvironmentLoadQueue],
+    cancelOn: [InitializeProjectQueue],
 });
 
 // This only executes if everything has loaded, and cancels if another project is loaded
@@ -53,8 +53,8 @@ let LanguageSwitchAfterLoadQueue = new ActionQueue("LanguageSwitchAfterLoadQueue
     cancelRunning: true,
     replaceQueued: true,
     maxQueued: 1,
-    waitOn: [LoadProjectQueue],
-    cancelOn: [LoadProjectQueue, InitializeProjectQueue],
+    waitOn: [ImportToProjectQueue, InitializeProjectQueue],
+    cancelOn: [InitializeProjectQueue],
 });
 
 // TODO: This only executes if everything has loaded, and cancels if another project is loaded
@@ -79,7 +79,7 @@ ActionQueue.OnClear([ExecutionEnvironmentLoadQueue, InitializeProjectQueue], asy
 [
     InitializeProjectQueue,
     MirrorProjectQueue,
-    LoadProjectQueue,
+    ImportToProjectQueue,
     CompilerInitQueue,
     ExecutionEnvironmentLoadQueue,
 ].forEach(queue => ActionQueue.OnClear([queue], updateCodeExecutionState));
