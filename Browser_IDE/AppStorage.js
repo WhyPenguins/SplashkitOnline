@@ -2,6 +2,8 @@
 
 /**
  * Storage for the SplashKitOnline web app, not specific to a particular project.
+ * TODO: This and IDBStoredProject should both be rewritten using something like https://github.com/jakearchibald/idb
+ * This is just so bad to work with...'
  */
 class AppStorage extends EventTarget{
     constructor() {
@@ -33,6 +35,22 @@ class AppStorage extends EventTarget{
         finally{
             await RW.closeDB();
         }
+    }
+
+    async createProject(name="untitled", language=undefined) {
+        return await this.access(async (s) => {
+            return await s.createProject({projectName: name, language: language});
+        });
+    }
+    async getProject(projectID) {
+        return await this.access(async (s) => {
+            return await s.getProject(projectID);
+        });
+    }
+    async getProjectByName(name) {
+        return await this.access(async (s) => {
+            return await s.getProjectByName(name);
+        });
     }
 }
 
@@ -193,28 +211,49 @@ class __AppStorageRW{
         this.performedWrite = true;
     }
 
+    fillProjectDefaults(project){
+        if (!project)
+            return project;
+
+        project.language = project.language || "C++";
+
+        return project;
+    }
+
+    async getAllProjects(){
+        let AS = this;
+        let project = await AS.doTransaction("userProjects", "readonly", async (t, s) => {
+            let _project = await AS.request(t, async () => {
+                return s.getAll();
+            });
+            return _project;
+        });
+
+        return project.map(this.fillProjectDefaults);
+    }
+
     async getProject(projectID){
         let AS = this;
-        let project = await AS.doTransaction("userProjects", "readwrite", async (t, s) => {
+        let project = await AS.doTransaction("userProjects", "readonly", async (t, s) => {
             let _project = await AS.request(t, async () => {
                 return s.get(projectID);
             });
             return _project;
         });
 
-        return project;
+        return this.fillProjectDefaults(project);
     }
 
     async getProjectByName(projectName){
         let AS = this;
-        let project = await AS.doTransaction("userProjects", "readwrite", async (t, s) => {
+        let project = await AS.doTransaction("userProjects", "readonly", async (t, s) => {
             let _project = await AS.request(t, async () => {
                 return s.index("name").get(projectName);
             });
             return _project;
         });
 
-        return project;
+        return this.fillProjectDefaults(project);
     }
 
     async getAutoName(projectName){
@@ -235,7 +274,7 @@ class __AppStorageRW{
         return newName;
     }
 
-    async createProject(projectName, projectID = null, autoName = true){
+    async createProject({projectName="untitled", projectID = null, autoName = true, language = "C++"}){
         projectID = projectID || Date.now().toString();
 
         let AS = this;
@@ -246,7 +285,8 @@ class __AppStorageRW{
             await AS.request(t, async () => {
                 return s.put({
                     id: projectID, 
-                    name: projectName
+                    name: projectName,
+                    language: language
                 });
             });
         });
@@ -255,20 +295,35 @@ class __AppStorageRW{
         return projectID;
     }
 
-    async renameProject(projectID, newProjectName, autoName = true){
+    async updateProject(projectID, updateFunc){
+        let project = await this.getProject(projectID);
+        if (!project){
+            throw new Error("Couldn't find project " + projectID);
+        }
+
+        updateFunc(project);
+
         let AS = this;
-
-        if (autoName) projectName = await this.getAutoName(projectName);
-
         await AS.doTransaction("userProjects", "readwrite", async (t, s) => {
             await AS.request(t, async () => {
-                return s.put({
-                    id: projectID,
-                    name: newProjectName
-                });
+                return s.put(project);
             });
         });
         this.performedWrite = true;
+    }
+
+    async setProjectLanguage(projectID, language = "C++"){
+        return this.updateProject(projectID, function (project){
+            project.language = language;
+        });
+    }
+
+    async renameProject(projectID, newProjectName, autoName = true){
+        if (autoName) projectName = await this.getAutoName(projectName);
+
+        return this.updateProject(projectID, function (project){
+            project.name = newProjectName;
+        });
     }
 
     async deleteProject(projectID){
