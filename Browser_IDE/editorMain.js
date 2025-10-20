@@ -586,18 +586,26 @@ function SwitchToTab(editor){
 }
 
 function reloadPage() {
-    let page_url = new URL(window.location.href);
-    window.location = page_url;
+    window.location.reload();
 }
 
 function updateURLSettings(key, value, reload=false) {
     let url = new URL(window.location.href);
     url.searchParams.set(key, value);
+
+    if (key == "project"){
+        url.searchParams.delete("initializeProjectName");
+    }
+
     window.history.pushState(null, '', url.toString());
 
     if (reload)
         reloadPage();
 }
+
+window.addEventListener('popstate', function(event) {
+    reloadPage();
+});
 
 // switch active language
 // currently just reloads the page with the 'language' parameter set
