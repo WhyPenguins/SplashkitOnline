@@ -300,7 +300,6 @@ class ExecutionEnvironment extends EventTarget{
         iframe.src="executionEnvironment.html"+page_url.search;
 
         iframe.style = "display: flex;flex: 1;/*! flex-grow: 1; */width: 100%;height: 100%;";
-        iframe.focus();
 
         let f = function(ev){
             this.removeEventListener("languageLoaderReady", f);
