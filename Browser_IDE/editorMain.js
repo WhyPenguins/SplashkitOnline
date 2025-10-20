@@ -1286,7 +1286,7 @@ async function projectFromZip(file, isCanceled = function(){}){
                         await isCanceled();
 
                         await FSEnsurePath(unifiedFS, abs_path+"/");
-                    });
+                    }());
                 }
                 else{
                     promises.push(async function () {
