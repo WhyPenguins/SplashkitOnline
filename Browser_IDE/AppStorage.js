@@ -319,7 +319,7 @@ class __AppStorageRW{
     }
 
     async renameProject(projectID, newProjectName, autoName = true){
-        if (autoName) projectName = await this.getAutoName(projectName);
+        if (autoName) newProjectName = await this.getAutoName(newProjectName);
 
         return this.updateProject(projectID, function (project){
             project.name = newProjectName;
