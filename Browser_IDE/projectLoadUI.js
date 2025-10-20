@@ -180,6 +180,9 @@ async function LoadProjects(){
     });
     let projectsListing = [];
     for (let project of projects){
+        if (project.name.indexOf(".") == 0)
+            continue;
+
         projectsListing.push({
             title: project.name,
             language: project.language,
