@@ -365,7 +365,6 @@ class CodeViewer {
         this.editorContainer = null;
         this.editor = null;
     }
-
 }
 
 function getExtension(filename) {
@@ -586,20 +585,27 @@ function SwitchToTab(editor){
     }
 }
 
+function reloadPage() {
+    let page_url = new URL(window.location.href);
+    window.location = page_url;
+}
+
+function updateURLSettings(key, value, reload=false) {
+    let url = new URL(window.location.href);
+    url.searchParams.set(key, value);
+    window.history.pushState(null, '', url.toString());
+
+    if (reload)
+        reloadPage();
+}
+
 // switch active language
 // currently just reloads the page with the 'language' parameter set
 // in the future, ideally this will work _without_ reloading the page,
 // by unloading the existing language scripts then loading the new ones
-function switchActiveLanguage(language){
-     let page_url = new URL(window.location.href);
-     page_url.searchParams.set('language', language.replaceAll("+"," ") /* spaces become + in url */);
-     window.location = page_url;
-}
-
-function schedulePotentialLanguageSwitch(language){
-    LanguageSwitchAfterLoadQueue.Schedule("PotentiallySwitchLanguage", async function(){
-        if (activeLanguage.name != language)
-            switchActiveLanguage(language);
+function scheduleLanguageSwitch(){
+    LanguageSwitchAfterLoadQueue.Schedule("SwitchLanguage", async function(){
+        reloadPage();
     });
 }
 
@@ -612,10 +618,13 @@ function setupLanguageSelectionBox(){
         languageSelectElem.append(elem("option", {value: language.name}, [language.userVisibleName]));
     }
 
-    languageSelectElem.addEventListener('change', function(event) {
-        // just switch active language
-        // TODO: store chosen language inside project
-        switchActiveLanguage(event.target.value);
+    languageSelectElem.addEventListener('change', async function(event) {
+        // Update project's language
+        await appStorage.access(async (s)=>{
+            return s.setProjectLanguage(storedProject.projectID, event.target.value);
+        })
+
+        scheduleLanguageSwitch();
     });
 }
 
@@ -626,60 +635,49 @@ let activeLanguage = null;
 let activeLanguageSetup = null;
 
 
-function setupActiveLanguage(){
-    if (SKO.language in SplashKitOnlineLanguageAliasMap) {
-        activeLanguage = SplashKitOnlineLanguageAliasMap[SKO.language];
-    } else {
-        activeLanguage = SplashKitOnlineLanguageAliasMap["JavaScript"];
+function setupActiveLanguage(language){
+    let newActiveLanguage = null;
 
-        displayEditorNotification("Unable to switch to language "+SKO.language+", defaulting to JavaScript.", NotificationIcons.ERROR, -1);
+    if (language in SplashKitOnlineLanguageAliasMap) {
+        newActiveLanguage = SplashKitOnlineLanguageAliasMap[language];
+    } else {
+        newActiveLanguage = SplashKitOnlineLanguageAliasMap["JavaScript"];
+
+        displayEditorNotification("Unable to switch to language "+language+", defaulting to JavaScript.", NotificationIcons.ERROR, -1);
         displayEditorNotification("Available languages are: <br/><ul>"+
             SplashKitOnlineLanguageDefinitions.map(val => `<li>${val.userVisibleName}</li>`).join("")+
             "</ul>", NotificationIcons.ERROR, -1
         );
     }
+
+    // No need to continue if it's the same language'
+    if (newActiveLanguage == activeLanguage)
+        return;
+
+    // if we're switching language, reload the page instead
+    if (activeLanguage != null){
+        scheduleLanguageSwitch();
+        return;
+    }
+
+    // Otherwise initialize the language compiler/globals
+    activeLanguage = newActiveLanguage;
+
     activeLanguageSetup = activeLanguage.setups[0];
 
+    CompilerInitQueue.Schedule("CompilerInit", async function CompilerInitQueue (isCanceled){
+        await initializeLanguageCompilerFiles(activeLanguageSetup);
+        await executionEnviroment.updateCompilerLoadProgress(1);
+    });
     languageSelectElem.value = activeLanguage.name;
+
+    if (!activeLanguageSetup.supportHotReloading) document.getElementById("runOne").children[0].innerText = "Syntax Check File";
 }
-
-
 
 let executionEnviroment = null;
 let appStorage = null;
 let storedProject = null;
 let unifiedFS = null;
-
-// Project handling needs to be fixed
-// This function is a big issue;
-// making a new project shouldn't delete
-// the current one...
-// TODO: Rationalize project handling
-async function scheduleProjectReInitialization(initializer){
-    ExecutionEnvironmentLoadQueue.Schedule("Reset", async function (isCanceled){
-        await executionEnviroment.initialize(activeLanguageSetup);
-    });
-    InitializeProjectQueue.Schedule("ProjectReInitialization", async function (isCanceled){
-        let projectID = storedProject.projectID;
-
-        disableCodeExecution();
-        storedProject.detachFromProject();
-        closeAllCodeEditors();
-        await storedProject.deleteProject(projectID);
-
-        await isCanceled();
-        await appStorage.attach();
-
-        await isCanceled();
-
-        storedProject.initializer = initializer;
-        await storedProject.attachToProject();
-
-        await isCanceled();
-
-        await openCodeEditors();
-    });
-}
 
 async function mirrorProject(){
     if (!activeLanguageSetup.persistentFilesystem)
@@ -1043,6 +1041,56 @@ function updateProgramButton(buttonId, allowExecution, buttonOn) {
     button.style.display = !buttonOn ? "none" : "";
 }
 
+async function UnloadProject(isCanceled){
+    disableCodeExecution();
+    storedProject.detachFromProject();
+    closeAllCodeEditors();
+
+    if (isCanceled) await isCanceled();
+}
+
+async function LoadProject(projectID, initializer=null, isCanceled){
+    //TODO: Check if project is loaded first
+    await UnloadProject(isCanceled);
+
+    await appStorage.attach();
+
+    if (isCanceled) await isCanceled();
+
+    updateURLSettings("project", projectID);
+
+    let project = await appStorage.getProject(projectID);
+
+    if (!project){
+        displayEditorNotification("Failed to load project! Perhaps this project doesn't exist?", NotificationIcons.CRITICAL_ERROR, -1,);
+        throw new Error("Could not load project " + projectID);
+    }
+
+    // no need to await this
+    appStorage.access(async (s) => {
+        await s.updateLastOpenProject(projectID);
+    });
+
+    await setupActiveLanguage(project["language"]);
+
+    if (isCanceled) await isCanceled();
+
+    ExecutionEnvironmentLoadQueue.Schedule("ExecutionEnvironmentInit", async function (isCanceled){
+        await executionEnviroment.initialize(activeLanguageSetup);
+    });
+
+    if (initializer)
+        storedProject.initializer = initializer;
+    else
+        storedProject.initializer = activeLanguageSetup.getDefaultProject();
+
+    await storedProject.attachToProject(projectID);
+
+    if (isCanceled) await isCanceled();
+
+    await openCodeEditors();
+}
+
 function setupIDEButtonEvents() {
     // Add events for the code view
     document.getElementById("runOne").addEventListener("click", function () {
@@ -1071,10 +1119,22 @@ function setupIDEButtonEvents() {
     document.getElementById("UploadProject").addEventListener("click", () => document.getElementById("projectuploader").click());
 
     setupProjectButton("DownloadProject", downloadProject);
-    setupProjectButton("NewProject", () => scheduleProjectReInitialization(activeLanguageSetup.getDefaultProject()));
-    setupProjectButton("LoadDemo", () => ShowProjectLoader("Choose a demo project:", LoadDemoProjects));
+    setupProjectButton("NewProject", async function () {
+        let projectID = await appStorage.createProject(undefined, activeLanguage.name);
+        InitializeProjectQueue.Schedule("ProjectReInitialization", async function (isCanceled){
+            await LoadProject(projectID, activeLanguageSetup.getDefaultProject(), isCanceled);
+        });
+    });
+    setupProjectButton("LoadDemo", () => ShowProjectLoader("Choose a demo project:", LoadDemoProjects, async function(demo){
+        let reroutedURL = await rerouteURL(demo["file"]);
 
-    if (!activeLanguageSetup.supportHotReloading) document.getElementById("runOne").children[0].innerText = "Syntax Check File";
+        let projectID = await appStorage.createProject(demo["title"], demo["language"]);
+
+        InitializeProjectQueue.Schedule("ProjectReInitialization", async function (isCanceled){
+            await LoadProject(projectID, function(){}, isCanceled);
+            scheduleLoadProjectFromURL(reroutedURL);
+        });
+    }));
 }
 
 function setupProjectButton(buttonId, callback) {
@@ -1413,8 +1473,6 @@ function openProjectFile(filename) {
 
 async function scheduleLoadProjectFromURL(url){
     ImportToProjectQueue.Schedule("loadProjectFromURL", async function (isCanceled){
-    scheduleProjectReInitialization(function(){});
-
         return fetch(url).then(res => res.blob()).then(async blob => {
             await projectFromZip(blob, isCanceled);
 
@@ -1426,13 +1484,19 @@ async function scheduleLoadProjectFromURL(url){
 }
 
 // ------ Project Zipping/Unzipping Click Handling ------
-async function scheduleUploadProjectFromInput(){
+async function loadProjectFromInput(){
     let reader = new FileReader();
     let files = document.getElementById('projectuploader').files;
     let file = files[0];
 
-    scheduleProjectReInitialization(function(){});
+    let projectID = await appStorage.createProject(file.name.slice(0, file.name.indexOf(".")), activeLanguage.name); //TODO: Get the project language from the zip file
+    InitializeProjectQueue.Schedule("ProjectReInitialization", async function (isCanceled){
+        await LoadProject(projectID, function(){}, isCanceled);
+        scheduleUploadProjectFromZip(file);
+    });
+}
 
+async function scheduleUploadProjectFromZip(file){
     ImportToProjectQueue.Schedule("uploadProjectFromInput", async function (isCanceled){
         await projectFromZip(file, isCanceled);
 
@@ -1544,7 +1608,7 @@ function setupProjectConflictAndConfirmationModals() {
         // Calling checkForWriteConflicts() directly inside visibilitychange
         // seems to cause the connection made to not close properly,
         // leading to strange timeouts and other issues - particularly when
-        // deleting the database in scheduleProjectReInitialization - it can delay up to 20 seconds
+        // deleting the database - it can delay up to 20 seconds
         // or more. This bug tends to manifest _after_ a page reload, making it
         // particularly confusing.
         // The fix is simple - do the check after a short timeout instead.
@@ -1631,11 +1695,19 @@ function addErrorEventListeners(){
 function AddWindowListeners(){
     window.addEventListener('message', async function(m){
         switch (m.data.eventType){
-            case "InitializeProjectFromOutsideWorld":
-                scheduleProjectReInitialization(async function(storedProject){
-                    // load individual files
-                    await initializeFromFileList(storedProject, m.data.files)
-                });
+            case "ImportFiles":
+                if (m.data.files) {
+                    ImportToProjectQueue.Schedule("InitializeProjectFromOutsideWorld_ProjectFromFiles", async function (){
+                        for (let i = 0; i < m.data.files.length; i ++) {
+                            let file = m.data.files[i];
+
+                            await FSEnsurePath(unifiedFS, file.path);
+
+                            await unifiedFS.writeFile(file.path, file.data);
+                        }
+                    });
+                }
+
                 if (m.data.zips) {
                     ImportToProjectQueue.Schedule("InitializeProjectFromOutsideWorld_ProjectFromZip", async function (){
                         // load from requested zips
@@ -1645,6 +1717,7 @@ function AddWindowListeners(){
                     });
                 }
                 break;
+
             case "EnterBlockEditMode":
                 ImportToProjectQueue.Schedule("EnterBlockEditMode", async function (){
                     for (let i = 0; i < m.data.files.length; i ++) {

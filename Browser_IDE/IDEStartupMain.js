@@ -92,10 +92,7 @@ async function StartIDE() {
         // Interface setup
         createGutterSplitters();
         setupLanguageSelectionBox();
-
-        // Initialize language
-        setupActiveLanguage();
-        setupIDEButtonEvents(); // uses current language
+        setupIDEButtonEvents();
 
         // Create execution environment and project storage objects
         // These constructors don't _do_ anything important.
@@ -116,29 +113,41 @@ async function StartIDE() {
         setupMinifiedInterface();
     });
 
+    if (SKO.autoOpenProject) {
+        InitializeProjectQueue.Schedule("LoadProjectInit", async function InitializeProjectQueue (isCanceled){
+            await isCanceled();
 
-    CompilerInitQueue.Schedule("CompilerInit", async function CompilerInitQueue (isCanceled){
-        await initializeLanguageCompilerFiles(activeLanguageSetup);
-        await executionEnviroment.updateCompilerLoadProgress(1);
-    });
+            await appStorage.attach();
 
-    ExecutionEnvironmentLoadQueue.Schedule("ExecutionEnvironmentInit", async function ExecutionEnvironmentLoadQueue (isCanceled){
-        await executionEnviroment.initialize(activeLanguageSetup);
-    });
+            // find/create the project
+            let projectID = null;
 
-    InitializeProjectQueue.Schedule("LoadLastProjectInit", async function InitializeProjectQueue (isCanceled){
-        await isCanceled();
+            // if loading/creating by name
+            if (SKO.initializeProjectName){
+                let project = await appStorage.getProjectByName(SKO.initializeProjectName);
+                if (!project)
+                    projectID = await appStorage.createProject(SKO.initializeProjectName, SKO.language);
+                else
+                    projectID = project.id;
+            }
+            // if loading by ID
+            else if (SKO.projectID){
+                projectID = SKO.projectID;
+            }
+            // otherwise load last open project, or create if first run
+            else {
+                projectID = await appStorage.access(async (s)=>{
+                    return s.getLastOpenProject();
+                })
 
-        await appStorage.attach();
+                if (!projectID)
+                    projectID = await appStorage.createProject(undefined, SKO.language);
+            }
 
-        await isCanceled();
-
-        await storedProject.attachToProject();
-
-        await isCanceled();
-
-        openCodeEditors();
-    });
+            // Load and initialize it!
+            await LoadProject(projectID, SKO.defaultInitializeProject ? null : function(){}, isCanceled);
+        });
+    }
 
     AddWindowListeners();
 

@@ -25,6 +25,10 @@ let SKO = (function(){
 
     return {
         language: getEnvParam("language", "C++", false), /*don't decode, so + remains + rather than a space*/
+        initializeProjectName: getEnvParam("initializeProjectName"), // ensures a project with this name exists - loads if already exists, otherwise creates
+        autoOpenProject: getEnvParam("autoOpenProject", "on", true) == "on", // whether to automatically load a project (for instance the last one opened)
+        defaultInitializeProject: getEnvParam("defaultInitializeProject", "on", true) == "on", // whether to initialize created projects with default files/folders, or leave empty
+        projectID: getEnvParam("project"), // load this projectID (exclusive of initializeProjectName and defaultInitializeProject)
         useCompressedBinaries: getEnvParam("useCompressedBinaries", "on", true) == "on",
         useMinifiedInterface: getEnvParam("useMinifiedInterface") == "on",
         useEmbeddedInterface: getEnvParam("useEmbeddedInterface") == "on",
