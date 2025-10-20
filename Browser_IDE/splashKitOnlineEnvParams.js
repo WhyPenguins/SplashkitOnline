@@ -24,7 +24,7 @@ let SKO = (function(){
                    || (page_url.pathname.indexOf("/branch-previews/") >= 0);
 
     return {
-        language: getEnvParam("language", "JavaScript", false), /*don't decode, so + remains + rather than a space*/
+        language: getEnvParam("language", "C++", false), /*don't decode, so + remains + rather than a space*/
         useCompressedBinaries: getEnvParam("useCompressedBinaries", "on", true) == "on",
         useMinifiedInterface: getEnvParam("useMinifiedInterface") == "on",
         useEmbeddedInterface: getEnvParam("useEmbeddedInterface") == "on",
