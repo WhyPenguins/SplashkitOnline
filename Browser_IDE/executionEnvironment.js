@@ -19,10 +19,9 @@ function getPromiseFromEvent(item, event) {
 
 class ExecutionEnvironment extends EventTarget{
 
-    constructor(container, language) {
+    constructor(container) {
         super();
 
-        this.language = language;
         this.container = container;
 
         this.hasRunOnce = false;
@@ -30,8 +29,12 @@ class ExecutionEnvironment extends EventTarget{
         this.readyForExecution = false;
     }
 
-    async initialize(){
-        this.iFrame = this._constructiFrame(this.container, this.language);
+    async initialize(language){
+        // if already initialized, treat this as a reset
+        if (this.channel)
+            return this.resetEnvironment(language);
+
+        this.iFrame = this._constructiFrame(this.container, language);
 
         let EE = this;
         this.channel = new PromiseChannel(window, this.iFrame.contentWindow);
@@ -194,10 +197,13 @@ class ExecutionEnvironment extends EventTarget{
     // --- Environment Functions ---
 
     // Completely destroys and recreates the environment.
-    resetEnvironment(language=null){
+    resetEnvironment(language){
         return new Promise((resolve,reject) => {
 
             this.readyForExecution = false;
+            if (!this.iFrame)
+                return this.initialize();
+
             this.iFrame.remove();
 
             let f = function(ev){
@@ -207,10 +213,7 @@ class ExecutionEnvironment extends EventTarget{
             }
             this.addEventListener("initialized", f);
 
-            if (language)
-                this.language = language;
-
-            this.iFrame = this._constructiFrame(this.container, this.language);
+            this.iFrame = this._constructiFrame(this.container, language);
             this.channel.setReceiver(this.iFrame.contentWindow);
 
             if (this.executionStatus != ExecutionStatus.Unstarted){

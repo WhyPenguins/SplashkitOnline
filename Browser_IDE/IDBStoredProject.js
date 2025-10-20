@@ -3,40 +3,17 @@
 const STORED_PROJECT_DB_PREFIX = "SplashKitOnlineProject_";
 
 class IDBStoredProject extends EventTarget{
-    constructor(appStorage, initializer) {
+    constructor(initializer) {
         super();
-        this.appStorage = appStorage;
         this.initializer = initializer;
         this.projectID = null;
         this.lastKnownWriteTime = 0;
     }
 
     // Public Facing Methods
-
     // Project Related
     async attachToProject(_projectID){
-        if(!_projectID){ // attach to last opened project
-            _projectID = await this.appStorage.access(async (s)=>{
-                return await s.getLastOpenProject();
-            })
-        }
         this.projectID = _projectID;
-
-
-
-        // check if project with this ID is listed in local interproject database
-        let _project = undefined;
-        if(_projectID){
-            _project = await this.appStorage.access(async (s) => {
-                return await s.getProject(_projectID);
-            });
-        }
-
-        if(!_project){ // project not listed
-            this.projectID = await this.appStorage.access(async (s) => {
-                return await s.createProject("untitled", _projectID);
-            });
-        }
 
         // Force an init by performing an empty DB operation
         await this.access(function(){});
@@ -45,10 +22,6 @@ class IDBStoredProject extends EventTarget{
         await this.checkForWriteConflicts();
 
         this.dispatchEvent(new Event("attached"));
-
-        await this.appStorage.access(async (s) => {
-            await s.updateLastOpenProject(this.projectID);
-        });
     }
 
     async access(func){
@@ -89,10 +62,6 @@ class IDBStoredProject extends EventTarget{
             res.onsuccess = function(){resolve();};
         }));
 
-        await this.appStorage.access(async (s) => {
-            await s.updateLastOpenProject(_projectID);
-        });
-
         this.detachFromProject();
     }
 };
@@ -131,7 +100,8 @@ class __IDBStoredProjectRW{
             openRequest.onsuccess = async function(e){
                 IDBFS.db = openRequest.result;
                 if (IDBFS.doInitialization){
-                    await IDBFS.owner.initializer(IDBFS);
+                    if (IDBFS.owner.initializer)
+                        await IDBFS.owner.initializer(IDBFS);
                     await IDBFS.updateLastWriteTime();
                 }
                 IDBFS.doInitialization = false;
@@ -150,13 +120,6 @@ class __IDBStoredProjectRW{
         if (this.db != null)
             this.db.close();
         this.db = null;
-    }
-
-    async renameProject(newProjectName){
-        let IDBSP = this;
-        await IDBSP.owner.appStorage.access(async (s) => {
-            await s.renameProject(IDBSP.owner.projectID, newProjectName);
-        });
     }
 
     async getLastWriteTime(){

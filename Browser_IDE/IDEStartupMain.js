@@ -99,9 +99,9 @@ async function StartIDE() {
 
         // Create execution environment and project storage objects
         // These constructors don't _do_ anything important.
-        executionEnviroment = new ExecutionEnvironment(document.getElementById("ExecutionEnvironment"), activeLanguageSetup);
+        executionEnviroment = new ExecutionEnvironment(document.getElementById("ExecutionEnvironment"));
         appStorage = new AppStorage();
-        storedProject = new IDBStoredProject(appStorage, activeLanguageSetup.getDefaultProject());
+        storedProject = new IDBStoredProject(null);
         unifiedFS = new UnifiedFS(storedProject, executionEnviroment);
 
         // Setup callbacks/listeners
@@ -123,7 +123,7 @@ async function StartIDE() {
     });
 
     ExecutionEnvironmentLoadQueue.Schedule("ExecutionEnvironmentInit", async function ExecutionEnvironmentLoadQueue (isCanceled){
-        await executionEnviroment.initialize();
+        await executionEnviroment.initialize(activeLanguageSetup);
     });
 
     InitializeProjectQueue.Schedule("LoadLastProjectInit", async function InitializeProjectQueue (isCanceled){

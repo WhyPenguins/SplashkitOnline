@@ -657,7 +657,7 @@ let unifiedFS = null;
 // TODO: Rationalize project handling
 async function scheduleProjectReInitialization(initializer){
     ExecutionEnvironmentLoadQueue.Schedule("Reset", async function (isCanceled){
-        await executionEnviroment.resetEnvironment();
+        await executionEnviroment.initialize(activeLanguageSetup);
     });
     InitializeProjectQueue.Schedule("ProjectReInitialization", async function (isCanceled){
         let projectID = storedProject.projectID;
