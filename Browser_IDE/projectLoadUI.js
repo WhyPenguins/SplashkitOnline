@@ -67,14 +67,14 @@ async function ShowConfirmationPopup(title, innerContent, yesText = "Yes", noTex
     ).result) == 0;
 }
 
-async function ShowMessagePopup(title, innerContent, okayText = "Okay"){
+async function ShowMessagePopup(title, innerContent, okayText = "Okay", fullyBlocking = false){
     return await (ShowPopupGeneric({
         titleContent:title,
         innerContent:innerContent,
-        buttons: [
+        buttons: fullyBlocking? [] : [
             {text:okayText, class: "sk-demo-tag"},
         ],
-        showCloseButton: true}
+        showCloseButton: !fullyBlocking}
     ).result);
 }
 
