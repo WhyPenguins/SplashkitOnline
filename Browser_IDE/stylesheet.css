@@ -985,6 +985,7 @@ li.CodeMirror-hint-active {
 .sk-embedded #runtimeContainer{
   flex-grow: 1;
   min-height: 200px;
+  display: flex;
 }
 .sk-embedded .collapse-button{
   display:none
