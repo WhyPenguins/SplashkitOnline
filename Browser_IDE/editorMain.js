@@ -1599,6 +1599,19 @@ let projectConflictModal = null;
 
 let userHasIgnoredProjectConflict = false;
 
+async function checkProjectStillExists() {
+    if (storedProject.projectID == null)
+        return false;
+
+    if (await appStorage.getProject(storedProject.projectID))
+        return true;
+
+    ShowMessagePopup("Project Deleted!", "It seems the project has been deleted from another tab! Please reload to continue...", undefined, true);
+    storedProject.detachFromProject();
+
+    return false;
+}
+
 function setupProjectConflictAndConfirmationModals() {
     projectConflictModal = createModal(
         "projectConflictModal",
@@ -1623,13 +1636,15 @@ function setupProjectConflictAndConfirmationModals() {
 
     // Check for conflict every 2 seconds - if the lastWriteTime changes without us changing it,
     // the user must be modifying the project in another tab - so show the conflict modal.
-    setInterval(function(){
-        storedProject.checkForWriteConflicts();
+    setInterval(async function(){
+        if (await checkProjectStillExists())
+            storedProject.checkForWriteConflicts();
     }, 2000);
 
     // Also check on focus/visibilitychange (different compatability)
-    window.addEventListener("focus", function(){
-        storedProject.checkForWriteConflicts();
+    window.addEventListener("focus", async function(){
+        if (await checkProjectStillExists())
+            storedProject.checkForWriteConflicts();
     });
 
     window.addEventListener("visibilitychange", function(){
@@ -1640,8 +1655,9 @@ function setupProjectConflictAndConfirmationModals() {
         // or more. This bug tends to manifest _after_ a page reload, making it
         // particularly confusing.
         // The fix is simple - do the check after a short timeout instead.
-        setTimeout(function(){
-            storedProject.checkForWriteConflicts();
+        setTimeout(async function(){
+            if (await checkProjectStillExists())
+                storedProject.checkForWriteConflicts();
         }, 1);
     });
 
