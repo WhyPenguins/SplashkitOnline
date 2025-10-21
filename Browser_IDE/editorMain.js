@@ -1027,19 +1027,19 @@ function updateButtons() {
     let runProgramButtonOn = executionEnviroment.executionStatus == ExecutionStatus.Unstarted && !executionEnviroment.hasRunOnce;
     let continueProgramButtonOn = executionEnviroment.executionStatus == ExecutionStatus.Paused
     let restartProgramButtonOn = executionEnviroment.hasRunOnce;
-    let stopProgramButtonOn = executionEnviroment.executionStatus == ExecutionStatus.Running;
+    let pauseProgramButtonOn = executionEnviroment.executionStatus == ExecutionStatus.Running;
 
     // Update the main program buttons
     updateProgramButton("runProgram", allowExecution, runProgramButtonOn);
     updateProgramButton("continueProgram", allowExecution, continueProgramButtonOn);
     updateProgramButton("restartProgram", allowExecution, restartProgramButtonOn);
-    updateProgramButton("stopProgram", allowExecution, stopProgramButtonOn);
+    updateProgramButton("pauseProgram", allowExecution, pauseProgramButtonOn);
 
     // Update the collapsed program buttons
     updateProgramButton("collapsedRunProgram", allowExecution, runProgramButtonOn);
     updateProgramButton("collapsedContinueProgram", allowExecution, continueProgramButtonOn);
     updateProgramButton("collapsedRestartProgram", allowExecution, restartProgramButtonOn);
-    updateProgramButton("collapsedStopProgram", allowExecution, stopProgramButtonOn);
+    updateProgramButton("collapsedPauseProgram", allowExecution, pauseProgramButtonOn);
 }
 
 // Update the visibility and disabled state of a program button based on the state of the ExecutionEnvironment
@@ -1115,13 +1115,13 @@ function setupIDEButtonEvents() {
     setupProgramButton("runProgram", runProgram);
     setupProgramButton("continueProgram", continueProgram);
     setupProgramButton("restartProgram", restartProgram);
-    setupProgramButton("stopProgram", pauseProgram);
+    setupProgramButton("pauseProgram", pauseProgram);
 
     // Add events for the collapsed program buttons
     setupProgramButton("collapsedRunProgram", runProgram, true);
     setupProgramButton("collapsedContinueProgram", continueProgram, true);
     setupProgramButton("collapsedRestartProgram", restartProgram, true);
-    setupProgramButton("collapsedStopProgram", pauseProgram, true);
+    setupProgramButton("collapsedPauseProgram", pauseProgram, true);
 
     // Add events for the project buttons
     document.getElementById("UploadProject").addEventListener("click", () => document.getElementById("projectuploader").click());
