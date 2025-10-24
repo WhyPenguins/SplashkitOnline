@@ -56,6 +56,9 @@ var Module = {
                 // just forward it straight through
                 parent.postMessage(data, "*");
                 break;
+            case "Ping":
+                sendWorkerCommand("pingReply", {time: data.time});
+                break;
             case "stdinAwait":
                 setTerminalInputAwaitState(true);
                 break;

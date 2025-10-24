@@ -114,6 +114,18 @@ MakePatch(
     "if (val === null || val === 10 || tty.output.length > 20) {\n"+"            if (val != null) tty.output.push(val);"
 )
 
+# Receive events when outputting as well (useful to prevent locking up in infinite loops that output text)
+MakePatch(
+"out = (x) => {",
+"""out = (x) => {
+  __sko_process_events();"""
+)
+MakePatch(
+"err = (x) => {",
+"""err = (x) => {
+  __sko_process_events();"""
+)
+
 inGlue += """
 }
 

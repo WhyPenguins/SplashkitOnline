@@ -4,6 +4,24 @@ let nextEventsCheckTime = 0;
 // disable keepAlive system until we receive first keepAlive signal
 let lastKeepAlive = -1;
 
+//TODO: Do we need both ping and keepAlive?
+
+const pingMaxDelay = 20; // max delay of 60 milliseconds - after this we sleep to avoid filling the main thread with too many messages
+const pingInterval = 30;// ping every x milliseconds
+
+let ignorePingsUntil = performance.now();
+let nextPing = 0;
+
+function pingIfNeeded(now) {
+    if (now > nextPing){
+        postCustomMessage({
+            type: "Ping",
+            time: now
+        });
+        nextPing = now + pingInterval;
+    }
+}
+
 let terminated = false;
 
 function postCustomMessage(data) {
@@ -99,6 +117,17 @@ function handleEvent([event, args]){
             }
 
             break;
+        case "pingReply":
+            let now = performance.now();
+            let delay = now - args.time;
+
+            if (delay > pingMaxDelay && args.time >= ignorePingsUntil) {
+                console.log("delay!!", delay);
+                let waitUntil = now + delay;
+                ignorePingsUntil = waitUntil;
+                pauseLoop(null, reportContinue=false, handleEvents=true, waitUntil=waitUntil);
+            }
+            break;
         default:
             throw new Error("Unexpected event in workerEventProcessor.js: " + JSON.stringify(event));
     }
@@ -155,10 +184,12 @@ function __sko_process_events(){
     if (lastKeepAlive > 0 && lastKeepAlive + 1000 < now) {
         pauseLoop('keepAlive', false);
     }
+
+    pingIfNeeded(now);
 }
 
 // a busy loop for when paused
-function pauseLoop(waitOn, reportContinue=true, handleEvents=true) {
+function pauseLoop(waitOn, reportContinue=true, handleEvents=true, waitUntil=-1) {
     let paused = true;
     while (paused) {
         let programEvents = fetchEvents();
@@ -167,10 +198,14 @@ function pauseLoop(waitOn, reportContinue=true, handleEvents=true) {
         }
 
         for (let i = 0; i < programEvents.length; i ++) {
-            if (programEvents[i][0] == waitOn) {
+            if (waitOn && programEvents[i][0] == waitOn) {
                 lastKeepAlive = performance.now();
                 paused = false;
             }
+        }
+
+        if (waitUntil > 0 && performance.now() >= waitUntil){
+            paused = false;
         }
         // TODO: implement a less busy wait by
         // making the service worker delay its
