@@ -1,3 +1,7 @@
+// Note: all the code inside this file must be synchronous, as
+// it's called from inside the user's program.
+// Asynchronous events can't come back until the user's program ends.
+
 minimumEventsCheckInterval = 0; // set to 0, so we always fetch user events.
 let nextEventsCheckTime = 0;
 
@@ -6,20 +10,19 @@ let lastKeepAlive = -1;
 
 //TODO: Do we need both ping and keepAlive?
 
-const pingMaxDelay = 20; // max delay of 60 milliseconds - after this we sleep to avoid filling the main thread with too many messages
-const pingInterval = 30;// ping every x milliseconds
+const pingMaxDelay = 10; // max delay of 10 milliseconds - after this we sleep to avoid filling the main thread with too many messages
 
-let ignorePingsUntil = performance.now();
-let nextPing = 0;
+let pingReplyDeadline = -1;
+let currentPingSendTime = -1;
+let lastPingDelay = 0;
 
-function pingIfNeeded(now) {
-    if (now > nextPing){
-        postCustomMessage({
-            type: "Ping",
-            time: now
-        });
-        nextPing = now + pingInterval;
-    }
+function sendPing(now) {
+    postCustomMessage({
+        type: "Ping",
+        time: now
+    });
+    currentPingSendTime = now;
+    pingReplyDeadline = now + pingMaxDelay;
 }
 
 let terminated = false;
@@ -118,14 +121,10 @@ function handleEvent([event, args]){
 
             break;
         case "pingReply":
-            let now = performance.now();
-            let delay = now - args.time;
-
-            if (delay > pingMaxDelay && args.time >= ignorePingsUntil) {
-                console.log("delay!!", delay);
-                let waitUntil = now + delay;
-                ignorePingsUntil = waitUntil;
-                pauseLoop(null, reportContinue=false, handleEvents=true, waitUntil=waitUntil);
+            // ignore all ping replies except most recent
+            if (args.time == currentPingSendTime) {
+                lastPingDelay = performance.now() - currentPingSendTime;
+                sendPing(performance.now());
             }
             break;
         default:
@@ -180,16 +179,36 @@ function __sko_process_events(){
         skipNextCommands = false;
     }
 
+    now = performance.now();
+
     // if keep alive is active and it's been a while since we got a signal...
     if (lastKeepAlive > 0 && lastKeepAlive + 1000 < now) {
         pauseLoop('keepAlive', false);
+        now = performance.now();
     }
 
-    pingIfNeeded(now);
+    // update lastPingDelay once we go over the deadline
+    if (currentPingSendTime != -1 && pingReplyDeadline < now)
+        lastPingDelay = now - currentPingSendTime;
+
+    if (lastPingDelay > pingMaxDelay) {
+        // send another ping in case the previous one was lost
+        sendPing(now);
+
+        // now keep looping, handling events (so we continue to send/recieve pings)
+        pauseLoop(null, false, true, -1, function(programEvents){
+            // stay paused until ping delay is reasonable
+            return lastPingDelay > pingMaxDelay;
+        });
+    }
+
+    // if no ping is currently sent, send one!
+    if (currentPingSendTime == -1)
+        sendPing(performance.now());
 }
 
 // a busy loop for when paused
-function pauseLoop(waitOn, reportContinue=true, handleEvents=true, waitUntil=-1) {
+function pauseLoop(waitOn, reportContinue=true, handleEvents=true, waitUntil=-1, customWaitFunction=null) {
     let paused = true;
     while (paused) {
         let programEvents = fetchEvents();
@@ -197,10 +216,15 @@ function pauseLoop(waitOn, reportContinue=true, handleEvents=true, waitUntil=-1)
             programEvents.forEach(handleEvent);
         }
 
-        for (let i = 0; i < programEvents.length; i ++) {
-            if (waitOn && programEvents[i][0] == waitOn) {
-                lastKeepAlive = performance.now();
-                paused = false;
+        if (customWaitFunction) {
+            paused = customWaitFunction(programEvents);
+        }
+        else if (waitOn){
+            for (let i = 0; i < programEvents.length; i ++) {
+                if (programEvents[i][0] == waitOn) {
+                    lastKeepAlive = performance.now();
+                    paused = false;
+                }
             }
         }
 
