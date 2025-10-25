@@ -25,8 +25,6 @@ function sendPing(now) {
     pingReplyDeadline = now + pingMaxDelay;
 }
 
-let terminated = false;
-
 function postCustomMessage(data) {
   postMessage({ target: 'custom', userData: data });
 }
@@ -34,7 +32,7 @@ function postCustomMessage(data) {
 function handleEvent([event, args]){
     switch (event){
         case "terminate":
-            terminated = true;
+            while(true){ } // just pause until the worker is killed
             break;
         case "pause":
             postCustomMessage({
@@ -156,8 +154,6 @@ function fetchEvents() {
 }
 
 function __sko_process_events(){
-    if (terminated)
-        return;
 
     let now = performance.now();
 
