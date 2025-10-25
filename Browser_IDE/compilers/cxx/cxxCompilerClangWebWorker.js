@@ -143,8 +143,8 @@ async function initializeCompiler(downloadSet){
     // so the user doesn't need to see it...this feels wrong (´；ω；`)ｳｩｩ
     silenceCompilerOutput = true;
         clang.FS.writeFile("dummy.cpp", "");
-        await clang.callMain(["-c", "dummy.cpp"]);
-        await linkObjects(['-flavor', 'wasm', 'dummy.o'], "dummy.wasm");
+        clang.callMain(["-c", "dummy.cpp"]);
+        linkObjects(['-flavor', 'wasm', 'dummy.o'], "dummy.wasm");
 
         tidyClang();
         tidyLld();
@@ -176,11 +176,11 @@ function setupUserCode(codeFiles){
 }
 
 // compile user code and return the output
-async function compileObject(arguments, outputName){
+function compileObject(arguments, outputName){
     tidyClang();
 
     // Might be good to include '-fno-exceptions', '-no-pthread'
-    let exitCode = await clang.callMain(arguments);
+    let exitCode = clang.callMain(arguments);
 
     tidyClang(); // found it safest to do this twice, otherwise sometimes Clang still complained...
 
@@ -200,10 +200,10 @@ function setupUserObjects(objects){
 }
 
 // link user's objects and return the output
-async function linkObjects(arguments, outputName){
+function linkObjects(arguments, outputName){
     tidyLld();
 
-    let exitCode = await lld.callMain(arguments);
+    let exitCode = lld.callMain(arguments);
 
     tidyLld();
 
