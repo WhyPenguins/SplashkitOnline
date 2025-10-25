@@ -6,6 +6,7 @@ let terminalInput = document.getElementById("terminal-input");
 let terminalInputHint = document.getElementById("terminal-input-hint");
 let terminalHead = undefined;
 
+let terminalScrollbackLimit = 400; //400 spans, or ~400 lines
 
 function setTerminalInputAwaitState(awaiting) {
     if (awaiting)
@@ -97,6 +98,11 @@ function writeTerminal(text, escapeSpecialCharacters = true){
 
         terminalPanel.scrollTop = terminalPanel.scrollHeight; // focus on bottom
     }
+
+    while(terminalElement.childNodes.length > terminalScrollbackLimit){
+        terminalElement.children[0].remove();
+    }
+
     terminalInput.focus();
     showTerminal();
 }
