@@ -181,6 +181,7 @@ class ExecutionEnvironmentInternalCXX extends ExecutionEnvironmentInternal{
 }
 
 let executionEnvironment = null;
+var worker = null; // pre-declare `worker` declared in SplashKitBackendWASMCPP.js
 
 //  Audio
 let audioPlayer = null;
