@@ -58,6 +58,9 @@ button {
 }
 button:disabled {
     color: #AAA !important;
+}
+
+#runtimeContainer .sk-header button:disabled, #codeViewContainer .sk-header button:disabled {
     cursor: wait;
 }
 
@@ -1293,11 +1296,25 @@ li.CodeMirror-hint-active {
 .sk-function-hint {
   opacity:0.8;
   z-index:100;
-  width: initial;
+  width: initial !important;
   position: absolute;
   transform-origin: bottom;
   transform: translateY(-100%);
   padding:2px 10px;
   margin:0;
   transition: opacity 0.1s;
+}
+
+.sk-function-hint-overload-selector {
+  text-align: center;
+  font-size: 0.8em;
+  display: flex;
+  justify-content: end;
+  flex-direction: column;
+}
+
+.sk-function-hint-inner {
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
 }
