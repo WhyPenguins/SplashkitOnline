@@ -367,6 +367,9 @@ class CodeViewer {
         this.editor.on("copy", function(event, change) {
             codeViewerThis.lastCopy = window.getSelection().toString();
         })
+        this.editor.on("cut", function(event, change) {
+            codeViewerThis.lastCopy = window.getSelection().toString();
+        })
         // block pasting :)
         this.editor.on("beforeChange", function(event, change) {
             if (change.origin == "paste"){
