@@ -1,5 +1,7 @@
 "use strict";
 
+// This file really needs to be split up at some point...
+
 // ------ Setup UI ------
 
 class CodeViewer {
@@ -202,6 +204,7 @@ class CodeViewer {
     }
 
     __styleEditableBlocksHighlights(){
+        if (!this.inBlockEditMode()) return;
         for(const block of this.editableBlocks){
             let upperLine = block.from().line;
             let lowerLine = block.to().line;
@@ -212,6 +215,7 @@ class CodeViewer {
         }
     }
     __styleEditableBlocksHRs(){
+        if (!this.inBlockEditMode()) return;
         for(const block of this.editableBlocks){
             let upperLine = block.from().line;
             let lowerLine = block.to().line;
@@ -261,6 +265,8 @@ class CodeViewer {
         this.allBlocks = null;
         this.editableBlocks = null;
         this.editableBlocksLookup = null;
+        if (this.editableBlocksChangeCallback)
+            this.editor.off('change', this.editableBlocksChangeCallback);
     }
 
     enterBlockEditMode(editableBlocks/*[{name: "",lineStart:..., lineEnd:...}]*/, styles=["hr", "highlight"]/*hr|highlight|*/) {
@@ -334,11 +340,12 @@ class CodeViewer {
             let style = styles[i];
 
             if (style == "highlight") {
-                // re-apply when new lines are added
-                this.editor.on('change', function(cm, change) {
+                this.editableBlocksChangeCallback = function(cm, change) {
                     if (change.text.length > 1)
                         codeViewerThis.__styleEditableBlocksHighlights();
-                });
+                };
+                // re-apply when new lines are added
+                this.editor.on('change', this.editableBlocksChangeCallback);
                 this.__styleEditableBlocksHighlights();
             }
             else if (style == "hr") {
@@ -1005,7 +1012,7 @@ async function runProgram(){
             executionEnviroment.runProgram(compiled.output, runtimeOptions);
         } 
         else {
-            displayEditorNotification("Project has errors! Please see terminal for details.",NotificationIcons.ERROR,-1);
+            displayEditorNotification("Project has errors! Please see terminal for details.",NotificationIcons.ERROR,3);
         }
     }
     catch (err) {
@@ -1683,6 +1690,7 @@ function setupProgramExecutionEvents(){
     });
 }
 
+
 // ----- Handle "Project Opened in Another Tab" Conflict -----
 let projectConflictModal = null;
 
@@ -1836,7 +1844,8 @@ function AddWindowListeners(){
 
                             await FSEnsurePath(unifiedFS, file.path);
 
-                            await unifiedFS.writeFile(file.path, file.data);
+                            if (m.data.overwrite || ! (await unifiedFS.storedProject.access((project)=>project.readFile(file.path))))
+                                await unifiedFS.writeFile(file.path, file.data);
                         }
                     });
                 }
@@ -1869,6 +1878,21 @@ function AddWindowListeners(){
                 });
                 break;
 
+            case "ExitBlockEditMode":
+                for (let i = 0; i < editors.length; i ++) {
+                    editors[i].exitBlockEditMode();
+                }
+                console.log("done");
+                break;
+
+            case "CloseAllCodeEditors":
+                closeAllCodeEditors();
+                break;
+
+            case "OpenCodeEditors":
+                openCodeEditors();
+                break;
+
             case "RenameProject":
                 ImportToProjectQueue.Schedule("RenameProject", async function (){
                     await appStorage.access((s)=>s.renameProject(storedProject.projectID, m.data.name));
@@ -1876,7 +1900,7 @@ function AddWindowListeners(){
                 break;
 
             case "ShowMessage":
-                ImportToProjectQueue.Schedule("RenameProject", async function (){
+                ImportToProjectQueue.Schedule("ShowMessage", async function (){
                     ShowMessagePopup(parseBasicFormatting(m.data.title), parseBasicFormatting(m.data.message), undefined, m.data.block);
                     if (m.data.block) {
                         // prevents any warnings about access from other tabs
