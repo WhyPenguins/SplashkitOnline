@@ -95,7 +95,7 @@ class ExecutionEnvironmentInternalCXX extends ExecutionEnvironmentInternal{
         clearInterval(this.keepAliveID);
 
         let boundThis = this;
-        if (worker != null) {
+        if (typeof worker !=="undefined" && worker != null) {
             await new Promise((resolve,reject) => {
                 sendWorkerCommand("terminate", {});
 
@@ -161,7 +161,7 @@ class ExecutionEnvironmentInternalCXX extends ExecutionEnvironmentInternal{
     }
 
     async sendFSCommandToWorker(command){
-        if (worker == null)
+        if (typeof worker !=="undefined" && worker == null)
             return;// no need to throw, since we'll resync next time we run
 
         await sendAwaitableWorkerCommand(command.type, command);
