@@ -37,6 +37,15 @@ def js_print_type(_type):
 
     return ret
 
+def c_print_type(_type):
+    '''Hopefully obvious...'''
+    ret = _type.typename
+
+    if _type.typename == "vector":
+        ret = "vector<" + c_print_type(_type.template_type)+">"
+
+    return ret
+
 # Some functions have duplicate signatures when overloading is enabled
 # (for instance if they can take different types of numbers)
 # These will always be set to use the largest float type possible
@@ -47,8 +56,8 @@ already_process_functions = set()
 for func in api.functions:
     info = {
         "name":func.name if enable_overloading else func.unique_name,
-        "return":js_print_type(func.return_type),
-        "params":[js_print_type(param.type)+" "+param.name for param in func.parameters]
+        "return":c_print_type(func.return_type),
+        "params":[c_print_type(param.type)+" "+param.name for param in func.parameters]
     }
     # Just convert the dictionary into a string to perform the test
     if str(info) not in already_process_functions:

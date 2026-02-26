@@ -308,6 +308,11 @@ function createCodeHinter(editor){
 
         let bestOverload = null;
 
+        // Loop from longest to shortest, this way
+        // we see ones like `int x, int y` before
+        // more advanced ones like `point_2d point`
+        matches.reverse();
+
         // Loop over each overload
         for (let k = 0; k < matches.length; k ++){
             let func = matches[k];
@@ -352,7 +357,7 @@ function createCodeHinter(editor){
             functionHintInner.appendChild(div);
         }
 
-        // If we didn't find any possible overloads, default to the first (also the shortest)
+        // If we didn't find any possible overloads, default to the first (also the longest)
         if (bestOverload == null) bestOverload = 0;
 
         // If the current matches are different to what we were showing before,
