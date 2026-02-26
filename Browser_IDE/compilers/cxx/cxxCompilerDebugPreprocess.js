@@ -344,8 +344,8 @@ const astHandlers = {
 
     "CallExpr": (node, editor, context) => {
         const sourceSpan = editor.calculateSourceSpan(node);
-        editor.insert(node.range.begin.offset, `(FunctionCallPauseHack{${sourceSpan}}, __TRACE_EXPRESSION(${sourceSpan}, `);
-        if (node.inner) node.inner.forEach(i => context.traverse(i, editor, context));
+        editor.insert(node.range.begin.offset, `(FunctionCallPauseHack{${sourceSpan}}, __TRACE_EXPRESSION(${sourceSpan}, ${context.isInnerExpression},`);
+        if (node.inner) node.inner.forEach(i => context.traverse(i, editor, context.markInner()));
         editor.insert(node.range.end.offset+node.range.end.tokLen, "))");
     },
 
@@ -355,21 +355,21 @@ const astHandlers = {
     },
 
     "ArraySubscriptExpr": (node, editor, context) => {
-        if (node.inner && node.inner[1]) context.traverse(node.inner[1], editor, context);
+        if (node.inner && node.inner[1]) context.traverse(node.inner[1], editor, context.markInner());
     },
 
     "BinaryOperator": (node, editor, context) => {
         const sourceSpan = editor.calculateSourceSpan(node);
         if (node.opcode.indexOf("=") == -1 || node.opcode == ">=" || node.opcode == "<=" || node.opcode == "==" || node.opcode == "!=") {
-            editor.insert(node.range.begin.offset, `__TRACE_EXPRESSION(${sourceSpan},`);
-            node.inner.forEach(i => context.traverse(i, editor, context));
+            editor.insert(node.range.begin.offset, `__TRACE_EXPRESSION(${sourceSpan}, ${context.isInnerExpression},`);
+            node.inner.forEach(i => context.traverse(i, editor, context.markInner()));
             editor.insert(node.range.end.offset+node.range.end.tokLen, ")");
         } else {
             editor.insert(node.range.begin.offset, `__TRACE_ASSIGNMENT(${sourceSpan},`);
-            context.traverse(node.inner[0], editor, context);
+            context.traverse(node.inner[0], editor, context.markInner());
             editor.insert(node.inner[0].range.end.offset+node.inner[0].range.end.tokLen, ",");
             editor.insert(node.inner[1].range.begin.offset, ",");
-            context.traverse(node.inner[1], editor, context);
+            context.traverse(node.inner[1], editor, context.markInner());
             editor.insert(node.range.end.offset+node.range.end.tokLen, ")");
         }
     },
@@ -392,18 +392,18 @@ const astHandlers = {
         if (node.opcode == "++" || node.opcode == "--"){
             if (node.isPostfix) {
                 editor.insert(node.range.begin.offset, `__TRACE_ASSIGNMENT(${sourceSpan},`);
-                context.traverse(node.inner[0], editor, context);
+                context.traverse(node.inner[0], editor, context.markInner());
                 editor.insert(node.inner[0].range.end.offset+node.inner[0].range.end.tokLen, ",");
                 editor.insert(node.range.end.offset+node.range.end.tokLen, ")");
             } else {
                 editor.insert(node.range.begin.offset, `__TRACE_ASSIGNMENT_PRE(${sourceSpan},`);
                 editor.insert(node.inner[0].range.begin.offset, ",");
-                context.traverse(node.inner[0], editor, context);
+                context.traverse(node.inner[0], editor, context.markInner());
                 editor.insert(node.range.end.offset+node.range.end.tokLen, ")");
             }
         } else {
-            editor.insert(node.range.begin.offset, `__TRACE_EXPRESSION(${sourceSpan},`);
-            node.inner.forEach(i => context.traverse(i, editor, context));
+            editor.insert(node.range.begin.offset, `__TRACE_EXPRESSION(${sourceSpan}, ${context.isInnerExpression},`);
+            node.inner.forEach(i => context.traverse(i, editor, context.markInner()));
             editor.insert(node.range.end.offset+node.range.end.tokLen, ")");
         }
     },
@@ -508,7 +508,7 @@ const astHandlers = {
 
     "ReturnStmt": (node, editor, context) => {
         const sourceSpan = editor.calculateSourceSpan(node);
-        editor.insert(node.range.begin.offset + node.range.begin.tokLen, ` __TRACE_EXPRESSION(${sourceSpan},`);
+        editor.insert(node.range.begin.offset + node.range.begin.tokLen, ` __TRACE_EXPRESSION(${sourceSpan}, ${context.isInnerExpression},`);
         if (node.inner) node.inner.forEach(i => context.traverse(i, editor, context));
         editor.insert(node.range.end.offset+node.range.end.tokLen, ")");
     },
@@ -734,7 +734,20 @@ async function preprocessDebugSourceCode(name, source, promiseChannel){
             `
         },
         declaredRecords: new Map(),
-        traverse: null // Assigned below to allow recursion
+        traverse: null, // Assigned below to allow recursion
+        isInnerExpression: false,
+        markInner: function(){
+            if (this.isInnerExpression)
+                return this;
+            return {
+                namespaceIncludesLength: this.namespaceIncludesLength,
+                predefs: this.predefs,
+                declaredRecords: this.declaredRecords,
+                traverse: this.traverse,
+                isInnerExpression: true,
+                markInner: this.markInner
+            };
+        }
     };
 
     // The recursive traversal function

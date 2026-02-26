@@ -415,7 +415,7 @@ function __sko_debugger_message(line, data){
         });
         pauseLoop('continue', true,true, -1, null, sleepTime=100);
     } else {
-        if (runtimeOptions && !runtimeOptions.enableSingleStepping && runtimeOptions.forceStepLineHighlighting/* && line != lastLine*/) {
+        if (runtimeOptions && !runtimeOptions.enableSingleStepping && runtimeOptions.forceStepLineHighlighting && data.event != "EXPRINNER" && data.break) {
             sleep(runtimeOptions.stepLineHighlightingDelay);
             __sko_process_events();
         }

@@ -282,17 +282,17 @@ bool is_one_for_all_type() {
 
 // Hook for expressions.
 template<typename F>
-decltype(auto) trace_expression(SourceSpan loc, F&& func) {
+decltype(auto) trace_expression(SourceSpan loc, bool inner, F&& func) {
     if constexpr (std::is_same<decltype(std::forward<F>(func)()), void>::value) {
         std::forward<F>(func)();
 
-        send_debug_message(loc.start, build_debug_event(loc, "EXPR", "null", ""));
+        send_debug_message(loc.start, build_debug_event(loc, inner?"EXPRINNER":"EXPR", "null", ""));
 
         return;
     } else {
         decltype(auto) x = std::forward<F>(func)();
 
-        send_debug_message(loc.start, build_debug_event(loc, "EXPR", "null", ""));
+        send_debug_message(loc.start, build_debug_event(loc, inner?"EXPRINNER":"EXPR", "null", ""));
         // TODO: Could have a "current expression viewer?"
         // Will need to output the value then
         return x;
@@ -443,7 +443,7 @@ void trace_deallocation(SourceSpan loc, T* x) {
 // ==========================================
 
 // Expression & Assignment Hooks
-#define __TRACE_EXPRESSION(loc, ...) trace_expression(loc, [&]() -> decltype(auto) {return __VA_ARGS__;})
+#define __TRACE_EXPRESSION(loc, inner, ...) trace_expression(loc, inner, [&]() -> decltype(auto) {return __VA_ARGS__;})
 
 #define __TRACE_ASSIGNMENT(loc, to, op, ...) \
 trace_assignment(loc, (to), #to, [&](auto& __x__) -> decltype(auto) {return __x__ op __VA_ARGS__;})
