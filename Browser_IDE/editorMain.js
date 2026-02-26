@@ -993,6 +993,9 @@ function audioFunctionNotification(source) {
 }
 
 // Functions to run/pause/continue/stop/restart the program itself
+// Temporary (hopefully) caching hack to avoid re-compilations
+let __previousCacheSourceTotal = "";
+let __previousCompiledBinary = null;
 async function runProgram(){
     try {
         clearErrorLines();
@@ -1012,9 +1015,12 @@ async function runProgram(){
             return;
         }
 
+        let __cacheSourceTotal = "";
+
         async function mapBit(filename){
             let source = await fileAsString(await storedProject.access((project) => project.readFile(filename)));
             if (activeLanguage.name == "C++" && !audioNotificationRunOnce) audioNotification = audioFunctionNotification(source);
+            __cacheSourceTotal += source;
             return {
                 name: filename,
                 source: source
@@ -1029,8 +1035,19 @@ async function runProgram(){
             displayEditorNotification(notificationMessage,NotificationIcons.ERROR,-1);
             return;
         }
+        let compilableFilesSources = Promise.all(compilableFiles.map(mapBit));
+        let sourceFilesSources = Promise.all(sourceFiles.map(mapBit));
+        await Promise.all([compilableFilesSources, sourceFilesSources]);
 
-        let compiled = await currentCompiler.compileAll(await Promise.all(compilableFiles.map(mapBit)), await Promise.all(sourceFiles.map(mapBit)), reportCompilationError, {isDebug: runtimeOptions.enableDebugging});
+        let compiled = null;
+        if (__cacheSourceTotal != __previousCacheSourceTotal || !__previousCompiledBinary) {
+            compiled = await currentCompiler.compileAll(await compilableFilesSources, await sourceFilesSources, reportCompilationError, {isDebug: runtimeOptions.enableDebugging});
+            __previousCacheSourceTotal = __cacheSourceTotal;
+            __previousCompiledBinary = compiled;
+        }
+        else {
+            compiled = __previousCompiledBinary;
+        }
 
         currentNotification.deleteNotification();
 
