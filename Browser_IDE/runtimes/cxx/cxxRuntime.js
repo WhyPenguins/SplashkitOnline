@@ -59,6 +59,9 @@ var Module = {
             case "Ping":
                 sendWorkerCommand("pingReply", {time: data.time});
                 break;
+            case "DebuggerMessage":
+                executionEnvironment.DebuggerMessage(data.data);
+                break;
             case "stdinAwait":
                 setTerminalInputAwaitState(true);
                 break;

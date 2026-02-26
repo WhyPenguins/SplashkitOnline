@@ -58,6 +58,8 @@ MakePatch(
     "  /** @export */\n"+
     "  __sko_process_events : __sko_process_events,\n"+
     "  /** @export */\n"+
+    "  __output_debugger_message__ : __output_debugger_message__,\n"+
+    "  /** @export */\n"+
     "  emscripten_memcpy_js : _emscripten_memcpy_js,"
 )
 

@@ -115,4 +115,7 @@ class ExecutionEnvironmentInternal {
     PreferTerminal() {
         showTerminal(true);
     }
+
+    DebuggerMessage(data){
+    }
 }

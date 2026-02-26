@@ -381,3 +381,17 @@ Module['preInit'] = function (){
         return x(...args);
     }
 }
+
+// Debugging
+function __output_debugger_message__(line, strPtr){
+    let text = Module['UTF8ToString'](strPtr);
+    __sko_debugger_message(line, JSON.parse(text));
+}
+
+function __sko_debugger_message(line, data){
+    postCustomMessage({
+        type: "DebuggerMessage",
+        data: data,
+    });
+}
+
