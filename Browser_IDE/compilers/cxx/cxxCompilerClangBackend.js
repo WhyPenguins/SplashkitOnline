@@ -119,7 +119,7 @@ export const compileObject = async (name, source, {isDebug=false}={}) => {
         }));
 
         if (isDebug && !(output.blob)) {
-            console.error(output.stdout);
+            output.stdout.forEach((x)=>console.log(x));
             throw new Error("Debug mode compilation failed! This is a problem with our code, not yours. Sorry!\nFor SplashKit Online developers, see browser console for details.");
         }
     }
