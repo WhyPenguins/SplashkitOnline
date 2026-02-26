@@ -652,6 +652,10 @@ li.CodeMirror-hint-active {
     color: white;
 }
 
+/* ensure widgets are above the text */
+.CodeMirror-linewidget {
+  z-index: 10;
+}
 
 /* New changes for scrollbar in FILES explorer section */
 
@@ -1284,4 +1288,16 @@ li.CodeMirror-hint-active {
 
 .handexecution-terminal{
   line-height: 1em;
+}
+
+.sk-function-hint {
+  opacity:0.8;
+  z-index:100;
+  width: initial;
+  position: absolute;
+  transform-origin: bottom;
+  transform: translateY(-100%);
+  padding:2px 10px;
+  margin:0;
+  transition: opacity 0.1s;
 }
