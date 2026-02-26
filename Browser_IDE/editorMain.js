@@ -89,8 +89,8 @@ class CodeViewer {
 
     setupCodeArea(element) {
         let editor = CodeMirror.fromTextArea(element, {
-            mode: "text/javascript",
-            theme: "dracula",
+            mode: "text/x-c++src",
+            theme: SKO.theme,
             lineNumbers: true,
             autoCloseBrackets: true,
             styleActiveLine: true,
@@ -100,13 +100,14 @@ class CodeViewer {
                 completeSingle: false,
                 useGlobalScope: false,
             },
+            lineWrapping: true,
             foldGutter: true,
             gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]
         });
 
         editor.on('inputRead', (cm, change) => {
             if (!cm.state.completeActive) {
-                cm.showHint();
+                //cm.showHint();
             }
         });
 

@@ -41,6 +41,7 @@ let SKO = (function(){
         useCompressedBinaries: getEnvParam("useCompressedBinaries", "on", true) == "on",
         useMinifiedInterface: getEnvParam("useMinifiedInterface") == "on",
         useEmbeddedInterface: getEnvParam("useEmbeddedInterface") == "on",
+        theme: getEnvParam("theme", "dracula"),
         enableDebugging: getEnvParam("enableDebugging") == "on",
         enableSingleStepping: getEnvParam("enableSingleStepping") == "on",
         forceStepLineHighlighting: getEnvParam("forceStepLineHighlighting") == "on",
