@@ -4,6 +4,7 @@
 importScripts('./fallibleMessage.js');
 
 // event queue
+const maxProgramEvents = 100;
 let programEvents = [];
 
 // queue events when supplied
@@ -16,11 +17,15 @@ self.addEventListener("message", (event) => {
     if (event.data.type == "clearEvents")
         programEvents = [];
 
+    if (programEvents.length > maxProgramEvents)
+        programEvents.splice(0, maxProgramEvents - programEvents.length);
+
     resolveMessageFallibleManual(event, undefined, event.source);
 });
 
 // when /programEvents.js is accessed, return all the events
 // in the queue, and clear it.
+// /sleep?ms=<milliseconds> allows for a non spin-loop delay
 self.addEventListener("fetch", (event) => {
     const requestUrl = new URL(event.request.url);
 
@@ -28,6 +33,17 @@ self.addEventListener("fetch", (event) => {
         let currentEvents = programEvents;
         programEvents = [];
         event.respondWith(constructResponse(currentEvents));
+    }
+    else if (requestUrl.pathname === "/sleep") {
+        let sleepLength = Number(requestUrl.searchParams.get("ms"));
+        // Protect against sleeping too long by accident
+        sleepLength = Math.min(sleepLength, 1000);
+
+        event.respondWith((async function (){
+                await new Promise(r => setTimeout(r, sleepLength));
+                return constructResponse([]);
+            })()
+        );
     }
 });
 

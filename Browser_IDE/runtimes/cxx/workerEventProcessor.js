@@ -38,7 +38,7 @@ function handleEvent([event, args]){
             postCustomMessage({
                 type: "ProgramPaused"
             });
-            pauseLoop('continue');
+            pauseLoop('continue', true,true, -1, null, sleepTime=100);
             break;
         case "keepAlive":
             lastKeepAlive = performance.now();
@@ -153,6 +153,16 @@ function fetchEvents() {
     return programEvents;
 }
 
+function sleep(delayms) {
+    try{
+        httpRequest.open("GET", "/sleep?ms="+delayms, false);
+        httpRequest.send(null);
+    }
+    catch (err){
+        console.error("Failed to sleep: ", err, httpRequest.response);
+    }
+}
+
 function __sko_process_events(){
 
     let now = performance.now();
@@ -204,8 +214,10 @@ function __sko_process_events(){
 }
 
 // a busy loop for when paused
-function pauseLoop(waitOn, reportContinue=true, handleEvents=true, waitUntil=-1, customWaitFunction=null) {
+// TODO: Refactor, this is doing too much and has too many parameters
+function pauseLoop(waitOn, reportContinue=true, handleEvents=true, waitUntil=-1, customWaitFunction=null, sleepTime=null) {
     let paused = true;
+    let pauseStart = performance.now();
     while (paused) {
         let programEvents = fetchEvents();
         if (handleEvents) {
@@ -227,9 +239,9 @@ function pauseLoop(waitOn, reportContinue=true, handleEvents=true, waitUntil=-1,
         if (waitUntil > 0 && performance.now() >= waitUntil){
             paused = false;
         }
-        // TODO: implement a less busy wait by
-        // making the service worker delay its
-        // response a bit when paused.
+        // Sleep for sleepTime once paused for longer than sleepTime*10  (heuristically chosen)
+        if (sleepTime && (performance.now() - pauseStart) > sleepTime*10)
+            sleep(sleepTime);
     }
 
     if (reportContinue)
