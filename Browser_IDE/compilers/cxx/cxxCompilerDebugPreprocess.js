@@ -343,6 +343,11 @@ const astHandlers = {
     },
 
     "CallExpr": (node, editor, context) => {
+
+        // Skip SplashKit COLOR_* macros
+        if (node.range.begin.spellingLoc && node.range.begin.spellingLoc.file == "/include/splashkit/color.h")
+            return;
+
         const sourceSpan = editor.calculateSourceSpan(node);
         editor.insert(node.range.begin.offset, `(FunctionCallPauseHack{${sourceSpan}}, __TRACE_EXPRESSION(${sourceSpan}, ${context.isInnerExpression},`);
         if (node.inner) node.inner.forEach(i => context.traverse(i, editor, context.markInner()));
@@ -380,11 +385,26 @@ const astHandlers = {
     },
 
     "CXXOperatorCallExpr": (node, editor, context) => {
+        let opcode = editor.select(node.inner[0].range.begin.offset, node.inner[0].range.end.offset + node.inner[0].range.end.tokLen);
         const sourceSpan = editor.calculateSourceSpan(node);
-        editor.insert(node.range.begin.offset, `__TRACE_ASSIGNMENT(${sourceSpan},`);
-        editor.insert(node.inner[0].range.begin.offset, ",");
-        editor.insert(node.inner[0].range.end.offset+node.inner[0].range.end.tokLen, ",");
-        editor.insert(node.range.end.offset+node.range.end.tokLen, ")");
+
+        if (opcode.indexOf("=") == -1 || opcode == ">=" || opcode == "<=" || opcode == "==" || opcode == "!=") {
+            editor.insert(node.range.begin.offset, `__TRACE_EXPRESSION(${sourceSpan}, ${context.isInnerExpression},`);
+            node.inner.forEach(i => context.traverse(i, editor, context.markInner()));
+            editor.insert(node.range.end.offset+node.range.end.tokLen, ")");
+        }
+        else {
+            editor.insert(node.range.begin.offset, `__TRACE_ASSIGNMENT(${sourceSpan},`);
+
+            context.traverse(node.inner[1], editor, context.markInner());
+
+            editor.insert(node.inner[0].range.begin.offset, ",");
+            editor.insert(node.inner[0].range.end.offset+node.inner[0].range.end.tokLen, ",");
+
+            context.traverse(node.inner[2], editor, context.markInner());
+
+            editor.insert(node.range.end.offset+node.range.end.tokLen, ")");
+        }
     },
 
     "UnaryOperator": (node, editor, context) => {
@@ -762,7 +782,7 @@ async function preprocessDebugSourceCode(name, source, promiseChannel){
         }
         // Default recursion for container nodes
         else {
-            const lookInside = ["DeclStmt", "ExprWithCleanups", "CXXMethodDecl", "CXXConstructorDecl", "ImplicitCastExpr", "DoStmt"];
+            const lookInside = ["DeclStmt", "ExprWithCleanups", "CXXMethodDecl", "CXXConstructorDecl", "ImplicitCastExpr", "DoStmt", "MaterializeTemporaryExpr", "CXXBindTemporaryExpr"];
             if (lookInside.indexOf(node.kind) >= 0 && node.inner) {
                 node.inner.forEach(child => traverse(child, ed, ctx));
             }
