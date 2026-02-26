@@ -1034,6 +1034,7 @@ li.CodeMirror-hint-active {
   justify-content: center;
   display: flex;
   container-type: size;
+  flex-wrap: wrap;
 }
 
 #canvasContainer canvas, #canvasContainer svg {

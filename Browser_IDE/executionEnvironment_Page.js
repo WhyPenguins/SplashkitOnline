@@ -9,8 +9,19 @@ let terminalHead = undefined;
 let terminalScrollbackLimit = 400; //400 spans, or ~400 lines
 
 function setTerminalInputAwaitState(awaiting) {
-    if (awaiting)
+    if (awaiting) {
+        if (handExecutionDrawing) {
+            // This is a hack
+            // TODO: Figure out something better
+            document.getElementById("terminalOutputContainer").style.display = "flex";
+            document.getElementById("canvasContainer").style.flexGrow = "3";
+
+        } else {
+            showTerminal(false);
+        }
         terminalInputHint.innerText = 'awaiting input...';
+        terminalInputHint.scrollIntoViewIfNeeded();
+    }
     else
         terminalInputHint.innerText = ' '; // space to ensure the line is at least the right height
 }
@@ -103,8 +114,12 @@ function writeTerminal(text, escapeSpecialCharacters = true){
         terminalElement.children[0].remove();
     }
 
-    terminalInput.focus();
-    showTerminal();
+    if (handExecutionDrawing) {
+        showCanvas();
+    } else {
+        terminalInput.focus();
+        showTerminal();
+    }
 }
 
 window.addEventListener("print", async function(ev) {
@@ -241,6 +256,7 @@ function ReportError(block, message, line, stacktrace ,formatted=false){
         message: escapedMessage,
         line: line
     },"*");
+
     showTerminal(false);
 }
 
