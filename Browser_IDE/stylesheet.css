@@ -573,6 +573,14 @@ textarea {
     background-color: #6c514f;
 }
 
+.current-line{
+  background-color: #34444d;
+}
+
+.current-line-expr{
+  background-color: #426754;
+}
+
 .read-only-line{
     opacity:0.8;
 }

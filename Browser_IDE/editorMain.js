@@ -563,6 +563,10 @@ let currentEditor = null;
 function SwitchToTab(editor){
     for (let i = 0; i < editors.length; i ++) {
         if (editors[i] == editor) {
+            // if it's already visible...
+            if (editors[i].editorContainer.style.display == 'flex')
+                return;
+
             editors[i].editorContainer.style.display = 'flex';
             editors[i].tab.classList.add('sk-tabs-active');
 
@@ -736,6 +740,37 @@ async function MirrorToExecutionEnvironment(){
 
 let allowExecution = false;
 let haveUploadedCodeOnce = false;
+
+let handExecutionModes = {
+    faithful: {
+        valueMode: "append",
+        stackMode: "append",
+        heapMode: "append",
+    },
+    clean: {
+        valueMode: "append",
+        stackMode: "replace",
+        heapMode: "append",
+    },
+    realtime: {
+        valueMode: "replace",
+        stackMode: "replace",
+        heapMode: "replace",
+    },
+}
+
+let runtimeOptions = {
+    enableDebugging:           true,
+    enableSingleStepping:      true,
+    forceStepLineHighlighting: false,
+    stepLineHighlightingDelay: 50,
+    showHandExecution:         true,
+    handExecutionSettings: {
+        width: 550,
+        height: 450,
+        modes: handExecutionModes["faithful"]
+    }
+};
 
 // Functions to disable/enable code-execution
 
@@ -961,12 +996,12 @@ async function runProgram(){
             return;
         }
 
-        let compiled = await currentCompiler.compileAll(await Promise.all(compilableFiles.map(mapBit)), await Promise.all(sourceFiles.map(mapBit)), reportCompilationError);
+        let compiled = await currentCompiler.compileAll(await Promise.all(compilableFiles.map(mapBit)), await Promise.all(sourceFiles.map(mapBit)), reportCompilationError, {isDebug: runtimeOptions.enableDebugging});
 
         currentNotification.deleteNotification();
 
         if (compiled.output != null) {
-            executionEnviroment.runProgram(compiled.output);
+            executionEnviroment.runProgram(compiled.output, runtimeOptions);
         } 
         else {
             displayEditorNotification("Project has errors! Please see terminal for details.",NotificationIcons.ERROR,-1);
@@ -1026,13 +1061,22 @@ function updateButtons() {
     // Get if the program buttons should be on
     let runProgramButtonOn = executionEnviroment.executionStatus == ExecutionStatus.Unstarted && !executionEnviroment.hasRunOnce;
     let continueProgramButtonOn = executionEnviroment.executionStatus == ExecutionStatus.Paused
+    let stepProgramButtonOn = executionEnviroment.executionStatus == ExecutionStatus.Running || executionEnviroment.executionStatus == ExecutionStatus.Paused;
     let restartProgramButtonOn = executionEnviroment.hasRunOnce;
     let pauseProgramButtonOn = executionEnviroment.executionStatus == ExecutionStatus.Running;
-    let terminateProgramButtonOn = executionEnviroment.executionStatus == ExecutionStatus.Running;
+    let terminateProgramButtonOn = executionEnviroment.executionStatus == ExecutionStatus.Running || executionEnviroment.executionStatus == ExecutionStatus.Paused;
+
+    if (runtimeOptions.enableSingleStepping) {
+        continueProgramButtonOn = false;
+        pauseProgramButtonOn = false;
+    } else {
+        stepProgramButtonOn = false;
+    }
 
     // Update the main program buttons
     updateProgramButton("runProgram", allowExecution, runProgramButtonOn);
     updateProgramButton("continueProgram", allowExecution, continueProgramButtonOn);
+    updateProgramButton("stepProgram", executionEnviroment.executionStatus == ExecutionStatus.Paused, stepProgramButtonOn);
     updateProgramButton("restartProgram", allowExecution, restartProgramButtonOn);
     updateProgramButton("pauseProgram", allowExecution, pauseProgramButtonOn);
     updateProgramButton("terminateProgram", allowExecution, terminateProgramButtonOn);
@@ -1088,6 +1132,7 @@ async function LoadProject(projectID, initializer=null, isCanceled){
 
     ExecutionEnvironmentLoadQueue.Schedule("ExecutionEnvironmentInit", async function (isCanceled){
         await executionEnviroment.initialize(activeLanguageSetup);
+        executionEnviroment.updateRuntimeOptions(runtimeOptions);
     });
 
     if (initializer)
@@ -1117,6 +1162,7 @@ function setupIDEButtonEvents() {
     // Add events for the main program buttons
     setupProgramButton("runProgram", runProgram);
     setupProgramButton("continueProgram", continueProgram);
+    setupProgramButton("stepProgram", continueProgram);
     setupProgramButton("restartProgram", restartProgram);
     setupProgramButton("pauseProgram", pauseProgram);
     setupProgramButton("terminateProgram", stopProgram);
@@ -1595,6 +1641,43 @@ function setupProgramExecutionEvents(){
         }
         catch(err) {
             e.reject(err);
+        }
+    });
+
+    // Highlight current line when debugging
+    let currentLineMark = null;
+    executionEnviroment.addEventListener("highlightCurrentLine", function(e){
+        for(let i = 0; i < editors.length; i ++) {
+            let editor = editors[i];
+
+            if (editor.editor._sko_current_line)
+                editor.editor.removeLineClass(editor.editor._sko_current_line, "wrap", "current-line");
+
+            if (e.filename && editor.filename != e.filename)
+                continue;
+
+            if (e.filename)
+                SwitchToTab(editor);
+
+            editor = editor.editor;
+
+            if (e.line != null){
+                if (editor.lineCount() < e.line)
+                    e.line = editor.lineCount();
+                editor._sko_current_line = editor.addLineClass(e.line, "wrap", "current-line");
+                editor.scrollIntoView({line:e.line, char:0}, 200);
+            }
+
+            if (currentLineMark)
+                currentLineMark.clear();
+
+            currentLineMark = editor.markText(
+                { line: e.line, ch: e.charStart },
+                { line: e.line, ch: e.charEnd },
+                {
+                    className:'current-line-expr',
+                }
+            );
         }
     });
 }

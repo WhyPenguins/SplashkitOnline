@@ -125,6 +125,9 @@ function handleEvent([event, args]){
                 sendPing(performance.now());
             }
             break;
+        case "updateRuntimeOptions":
+            runtimeOptions = args.runtimeOptions;
+            break;
         default:
             throw new Error("Unexpected event in workerEventProcessor.js: " + JSON.stringify(event));
     }
@@ -383,6 +386,8 @@ Module['preInit'] = function (){
 }
 
 // Debugging
+let runtimeOptions = null;
+let lastLine;
 function __output_debugger_message__(line, strPtr){
     let text = Module['UTF8ToString'](strPtr);
     __sko_debugger_message(line, JSON.parse(text));
@@ -393,5 +398,29 @@ function __sko_debugger_message(line, data){
         type: "DebuggerMessage",
         data: data,
     });
+
+    if (!runtimeOptions || (runtimeOptions.enableSingleStepping && data.break)) {
+        syncStdOut();
+        postCustomMessage({
+            type: "ProgramPaused"
+        });
+        pauseLoop('continue', true,true, -1, null, sleepTime=100);
+    } else {
+        if (runtimeOptions && !runtimeOptions.enableSingleStepping && runtimeOptions.forceStepLineHighlighting/* && line != lastLine*/) {
+            sleep(runtimeOptions.stepLineHighlightingDelay);
+            __sko_process_events();
+        }
+    }
+    lastLine = line;
 }
 
+Module.onCustomMessage = function(message){
+    let data = message.data.userData;
+    switch (data.event){
+        case "updateRuntimeOptions":
+            runtimeOptions = data.runtimeOptions;
+            break;
+        default:
+            throw new Error("Unexpected custom message in workerEventProcessor.js: " + JSON.stringify(data));
+    }
+}

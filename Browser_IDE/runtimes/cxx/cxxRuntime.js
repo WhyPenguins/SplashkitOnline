@@ -112,7 +112,13 @@ class ExecutionEnvironmentInternalCXX extends ExecutionEnvironmentInternal{
 
         setTerminalInputAwaitState(false);
     }
-    async runProgram(program){
+
+    async updateRuntimeOptions(runtimeOptions){
+        this.UpdateRuntimeOptionsBase(runtimeOptions);
+    }
+
+    async runProgram(program, runtimeOptions){
+        this.updateRuntimeOptions(runtimeOptions);
         this.RunProgramBase();
 
         await this.stopProgram();
@@ -126,6 +132,8 @@ class ExecutionEnvironmentInternalCXX extends ExecutionEnvironmentInternal{
         StartProgramWorker(program, {
             sampleRate: audioPlayer.audioContext.sampleRate
         });
+
+        worker.postMessage({ target: 'custom', userData: {"event": "updateRuntimeOptions", runtimeOptions}, preMain: true });
 
         // attempt to synchronize to main project file system
         // this just schedules all the commands, which will

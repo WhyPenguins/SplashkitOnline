@@ -139,6 +139,8 @@ terminalPanel.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
         let text = terminalInput.innerText + "\n";
         writeTerminal(text);
+        if (handExecutionDrawing)
+            handExecutionDrawing.print(text);
         executionEnvironment.InputFromTerminal(text);
 
         resetTerminalInput();
@@ -239,6 +241,7 @@ function ReportError(block, message, line, stacktrace ,formatted=false){
         message: escapedMessage,
         line: line
     },"*");
+    showTerminal(false);
 }
 
 let headerHeight = parseFloat(getComputedStyle(document.getElementsByClassName("sk-header")[0]).height.slice(0,-2));
@@ -327,6 +330,9 @@ if (SKO.useEmbeddedInterface) {
     document.getElementById("terminalCanvasSwitch").style.display = "initial";
     showTerminal(true);
 }
+
+let handExecutionDrawing = null;
+
 
 showLoadingContainer();
 updateLoadingProgress(0);
