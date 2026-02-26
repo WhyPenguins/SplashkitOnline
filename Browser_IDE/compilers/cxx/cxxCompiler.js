@@ -11,7 +11,7 @@ class CXXCompiler extends Compiler{
         this.signalReady();
     }
 
-    async compileAll(compileList, sourceList, print){
+    async compileAll(compileList, sourceList, print, {isDebug=false}={}){
         this.setPrintFunction(print);
 
         let compiled = {
@@ -33,7 +33,7 @@ class CXXCompiler extends Compiler{
         for(let i = 0; i < compileList.length; i ++) {
             if (compileList[i].source == "") continue;
 
-            let object = await this.compileOne(compileList[i].name, compileList[i].source, print);
+            let object = await this.compileOne(compileList[i].name, compileList[i].source, print, {isDebug});
 
             if (object.output.output == null){
                 hasErrors = true;
@@ -68,12 +68,12 @@ class CXXCompiler extends Compiler{
         }
     }
 
-    async compileOne(name, source, print){
+    async compileOne(name, source, print, {isDebug=false}={}){
         this.setPrintFunction(print);
 
         this.checkUsageOfIncompleteAPI(source);
 
-        let object = await this.compileObject(name, source);
+        let object = await this.compileObject(name, source, {isDebug});
 
         return {
             output: object
@@ -84,6 +84,7 @@ class CXXCompiler extends Compiler{
         this.setPrintFunction(print);
 
         // this should be changed so we actually just get clang to syntax check, should be possible.
+        // TODO: It is (see the debugger code), just need to get around to doing it...
         let object = await this.compileObject(name, source);
 
         return object.output != null;

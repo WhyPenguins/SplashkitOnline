@@ -48,6 +48,15 @@ class ExecutionEnvironment extends EventTarget{
             });
         })
 
+        this.channel.setEventListener('highlightCurrentLine', async function(data) {
+            let ev = new Event("highlightCurrentLine");
+            ev.filename = data.filename;
+            ev.line = data.line;
+            ev.charStart = data.charStart;
+            ev.charEnd = data.charEnd;
+            EE.dispatchEvent(ev);
+        })
+
         window.addEventListener('message', async function(e){
             const key = e.message ? 'message' : 'data';
             const data = e[key];
@@ -95,6 +104,11 @@ class ExecutionEnvironment extends EventTarget{
                 EE.executionStatus = ExecutionStatus.Unstarted;
 
                 let ev = new Event("programStopped");
+                EE.dispatchEvent(ev);
+                ev = new Event("highlightCurrentLine");
+                ev.line = 10000;
+                ev.charStart = 0;
+                ev.charEnd = 0;
                 EE.dispatchEvent(ev);
             }
             else if (data.type == "programPaused"){
@@ -151,10 +165,11 @@ class ExecutionEnvironment extends EventTarget{
         }, "*");
     }
 
-    runProgram(program){
+    runProgram(program, runtimeOptions){
         this.iFrame.contentWindow.postMessage({
             type: "RunProgram",
             program: program,
+            runtimeOptions: runtimeOptions,
         }, "*");
     }
 
@@ -190,6 +205,13 @@ class ExecutionEnvironment extends EventTarget{
         this.iFrame.contentWindow.postMessage({
             type: "UpdateCompilerLoadProgress",
             progress: progress,
+        }, "*");
+    }
+
+    updateRuntimeOptions(runtimeOptions){
+        this.iFrame.contentWindow.postMessage({
+            type: "UpdateRuntimeOptions",
+            runtimeOptions: runtimeOptions,
         }, "*");
     }
 

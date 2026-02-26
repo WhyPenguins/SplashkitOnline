@@ -16,6 +16,8 @@ let pingReplyDeadline = -1;
 let currentPingSendTime = -1;
 let lastPingDelay = 0;
 
+let normalPaused = false;
+
 function sendPing(now) {
     postCustomMessage({
         type: "Ping",
@@ -35,10 +37,12 @@ function handleEvent([event, args]){
             while(true){ } // just pause until the worker is killed
             break;
         case "pause":
+            if (normalPaused)
+                break;
             postCustomMessage({
                 type: "ProgramPaused"
             });
-            pauseLoop('continue');
+            pauseLoop('continue', true,true, -1, null, sleepTime=100);
             break;
         case "keepAlive":
             lastKeepAlive = performance.now();
@@ -125,6 +129,9 @@ function handleEvent([event, args]){
                 sendPing(performance.now());
             }
             break;
+        case "updateRuntimeOptions":
+            runtimeOptions = args.runtimeOptions;
+            break;
         default:
             throw new Error("Unexpected event in workerEventProcessor.js: " + JSON.stringify(event));
     }
@@ -151,6 +158,16 @@ function fetchEvents() {
         console.error("Failed to fetch new events: ", err, httpRequest.response);
     }
     return programEvents;
+}
+
+function sleep(delayms) {
+    try{
+        httpRequest.open("GET", "/sleep?ms="+delayms, false);
+        httpRequest.send(null);
+    }
+    catch (err){
+        console.error("Failed to sleep: ", err, httpRequest.response);
+    }
 }
 
 function __sko_process_events(){
@@ -204,8 +221,12 @@ function __sko_process_events(){
 }
 
 // a busy loop for when paused
-function pauseLoop(waitOn, reportContinue=true, handleEvents=true, waitUntil=-1, customWaitFunction=null) {
+// TODO: Refactor, this is doing too much and has too many parameters
+function pauseLoop(waitOn, reportContinue=true, handleEvents=true, waitUntil=-1, customWaitFunction=null, sleepTime=null) {
+    if (waitOn == "continue")
+        normalPaused = true;
     let paused = true;
+    let pauseStart = performance.now();
     while (paused) {
         let programEvents = fetchEvents();
         if (handleEvents) {
@@ -227,10 +248,12 @@ function pauseLoop(waitOn, reportContinue=true, handleEvents=true, waitUntil=-1,
         if (waitUntil > 0 && performance.now() >= waitUntil){
             paused = false;
         }
-        // TODO: implement a less busy wait by
-        // making the service worker delay its
-        // response a bit when paused.
+        // Sleep for sleepTime once paused for longer than sleepTime*10  (heuristically chosen)
+        if (sleepTime && (performance.now() - pauseStart) > sleepTime*10)
+            sleep(sleepTime);
     }
+    if (waitOn == "continue")
+        normalPaused = false;
 
     if (reportContinue)
         postCustomMessage({
@@ -367,5 +390,46 @@ Module['preInit'] = function (){
     Module["GL"].createContext = function(...args){
         postCustomMessage({ type: "windowOpen" });
         return x(...args);
+    }
+}
+
+// Debugging
+let runtimeOptions = null;
+let lastLine;
+
+function __output_debugger_message__(line, strPtr){
+    let text = Module['UTF8ToString'](strPtr);
+    __sko_debugger_message(line, JSON.parse(text));
+}
+
+function __sko_debugger_message(line, data){
+    postCustomMessage({
+        type: "DebuggerMessage",
+        data: data,
+    });
+
+    if (!runtimeOptions || (runtimeOptions.enableSingleStepping && data.break)) {
+        syncStdOut();
+        postCustomMessage({
+            type: "ProgramPaused"
+        });
+        pauseLoop('continue', true,true, -1, null, sleepTime=100);
+    } else {
+        if (runtimeOptions && !runtimeOptions.enableSingleStepping && runtimeOptions.forceStepLineHighlighting/* && line != lastLine*/) {
+            sleep(runtimeOptions.stepLineHighlightingDelay);
+            __sko_process_events();
+        }
+    }
+    lastLine = line;
+}
+
+Module.onCustomMessage = function(message){
+    let data = message.data.userData;
+    switch (data.event){
+        case "updateRuntimeOptions":
+            runtimeOptions = data.runtimeOptions;
+            break;
+        default:
+            throw new Error("Unexpected custom message in workerEventProcessor.js: " + JSON.stringify(data));
     }
 }

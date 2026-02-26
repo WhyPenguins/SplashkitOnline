@@ -1,5 +1,7 @@
 "use strict";
 
+// This file really needs to be split up at some point...
+
 // ------ Setup UI ------
 
 class CodeViewer {
@@ -89,8 +91,8 @@ class CodeViewer {
 
     setupCodeArea(element) {
         let editor = CodeMirror.fromTextArea(element, {
-            mode: "text/javascript",
-            theme: "dracula",
+            mode: "text/x-c++src",
+            theme: SKO.theme,
             lineNumbers: true,
             autoCloseBrackets: true,
             styleActiveLine: true,
@@ -100,13 +102,14 @@ class CodeViewer {
                 completeSingle: false,
                 useGlobalScope: false,
             },
+            lineWrapping: true,
             foldGutter: true,
             gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]
         });
 
         editor.on('inputRead', (cm, change) => {
             if (!cm.state.completeActive) {
-                cm.showHint();
+                //cm.showHint();
             }
         });
 
@@ -201,6 +204,7 @@ class CodeViewer {
     }
 
     __styleEditableBlocksHighlights(){
+        if (!this.inBlockEditMode()) return;
         for(const block of this.editableBlocks){
             let upperLine = block.from().line;
             let lowerLine = block.to().line;
@@ -211,6 +215,7 @@ class CodeViewer {
         }
     }
     __styleEditableBlocksHRs(){
+        if (!this.inBlockEditMode()) return;
         for(const block of this.editableBlocks){
             let upperLine = block.from().line;
             let lowerLine = block.to().line;
@@ -260,6 +265,8 @@ class CodeViewer {
         this.allBlocks = null;
         this.editableBlocks = null;
         this.editableBlocksLookup = null;
+        if (this.editableBlocksChangeCallback)
+            this.editor.off('change', this.editableBlocksChangeCallback);
     }
 
     enterBlockEditMode(editableBlocks/*[{name: "",lineStart:..., lineEnd:...}]*/, styles=["hr", "highlight"]/*hr|highlight|*/) {
@@ -333,11 +340,12 @@ class CodeViewer {
             let style = styles[i];
 
             if (style == "highlight") {
-                // re-apply when new lines are added
-                this.editor.on('change', function(cm, change) {
+                this.editableBlocksChangeCallback = function(cm, change) {
                     if (change.text.length > 1)
                         codeViewerThis.__styleEditableBlocksHighlights();
-                });
+                };
+                // re-apply when new lines are added
+                this.editor.on('change', this.editableBlocksChangeCallback);
                 this.__styleEditableBlocksHighlights();
             }
             else if (style == "hr") {
@@ -345,9 +353,21 @@ class CodeViewer {
             }
         }
 
+        this.editor.on("copy", function(event, change) {
+            codeViewerThis.lastCopy = window.getSelection().toString();
+        })
         // block pasting :)
         this.editor.on("beforeChange", function(event, change) {
             if (change.origin == "paste"){
+                let pastedText = change.text.join("\n");
+
+                // if they copy & pasted within the
+                // window, all good!
+                if (codeViewerThis.lastCopy && codeViewerThis.lastCopy.indexOf(pastedText) >= 0)
+                    return;
+                if (codeViewerThis.editor.getValue().indexOf(pastedText) >= 0)
+                    return;
+
                 displayEditorNotification("You'll learn better if you type it yourself :)", NotificationIcons.INFO, 6);
                 change.cancel();
             }
@@ -563,6 +583,10 @@ let currentEditor = null;
 function SwitchToTab(editor){
     for (let i = 0; i < editors.length; i ++) {
         if (editors[i] == editor) {
+            // if it's already visible...
+            if (editors[i].editorContainer.style.display == 'flex')
+                return;
+
             editors[i].editorContainer.style.display = 'flex';
             editors[i].tab.classList.add('sk-tabs-active');
 
@@ -736,6 +760,37 @@ async function MirrorToExecutionEnvironment(){
 
 let allowExecution = false;
 let haveUploadedCodeOnce = false;
+
+let handExecutionModes = {
+    faithful: {
+        valueMode: "append",
+        stackMode: "append",
+        heapMode: "append",
+    },
+    clean: {
+        valueMode: "append",
+        stackMode: "replace",
+        heapMode: "append",
+    },
+    realtime: {
+        valueMode: "replace",
+        stackMode: "replace",
+        heapMode: "replace",
+    },
+}
+
+let runtimeOptions = {
+    enableDebugging:           SKO.enableDebugging,
+    enableSingleStepping:      SKO.enableSingleStepping,
+    forceStepLineHighlighting: SKO.forceStepLineHighlighting,
+    stepLineHighlightingDelay: SKO.stepLineHighlightingDelay,
+    showHandExecution:         SKO.handExecutionMode != "",
+    handExecutionSettings: {
+        width: SKO.handExecutionWidth,
+        height: SKO.handExecutionHeight,
+        modes: handExecutionModes[SKO.handExecutionMode]
+    }
+};
 
 // Functions to disable/enable code-execution
 
@@ -961,15 +1016,15 @@ async function runProgram(){
             return;
         }
 
-        let compiled = await currentCompiler.compileAll(await Promise.all(compilableFiles.map(mapBit)), await Promise.all(sourceFiles.map(mapBit)), reportCompilationError);
+        let compiled = await currentCompiler.compileAll(await Promise.all(compilableFiles.map(mapBit)), await Promise.all(sourceFiles.map(mapBit)), reportCompilationError, {isDebug: runtimeOptions.enableDebugging});
 
         currentNotification.deleteNotification();
 
         if (compiled.output != null) {
-            executionEnviroment.runProgram(compiled.output);
+            executionEnviroment.runProgram(compiled.output, runtimeOptions);
         } 
         else {
-            displayEditorNotification("Project has errors! Please see terminal for details.",NotificationIcons.ERROR,-1);
+            displayEditorNotification("Project has errors! Please see terminal for details.",NotificationIcons.ERROR,3);
         }
     }
     catch (err) {
@@ -1026,13 +1081,22 @@ function updateButtons() {
     // Get if the program buttons should be on
     let runProgramButtonOn = executionEnviroment.executionStatus == ExecutionStatus.Unstarted && !executionEnviroment.hasRunOnce;
     let continueProgramButtonOn = executionEnviroment.executionStatus == ExecutionStatus.Paused
+    let stepProgramButtonOn = executionEnviroment.executionStatus == ExecutionStatus.Running || executionEnviroment.executionStatus == ExecutionStatus.Paused;
     let restartProgramButtonOn = executionEnviroment.hasRunOnce;
     let pauseProgramButtonOn = executionEnviroment.executionStatus == ExecutionStatus.Running;
-    let terminateProgramButtonOn = executionEnviroment.executionStatus == ExecutionStatus.Running;
+    let terminateProgramButtonOn = executionEnviroment.executionStatus == ExecutionStatus.Running || executionEnviroment.executionStatus == ExecutionStatus.Paused;
+
+    if (runtimeOptions.enableSingleStepping) {
+        continueProgramButtonOn = false;
+        pauseProgramButtonOn = false;
+    } else {
+        stepProgramButtonOn = false;
+    }
 
     // Update the main program buttons
     updateProgramButton("runProgram", allowExecution, runProgramButtonOn);
     updateProgramButton("continueProgram", allowExecution, continueProgramButtonOn);
+    updateProgramButton("stepProgram", executionEnviroment.executionStatus == ExecutionStatus.Paused, stepProgramButtonOn);
     updateProgramButton("restartProgram", allowExecution, restartProgramButtonOn);
     updateProgramButton("pauseProgram", allowExecution, pauseProgramButtonOn);
     updateProgramButton("terminateProgram", allowExecution, terminateProgramButtonOn);
@@ -1088,6 +1152,7 @@ async function LoadProject(projectID, initializer=null, isCanceled){
 
     ExecutionEnvironmentLoadQueue.Schedule("ExecutionEnvironmentInit", async function (isCanceled){
         await executionEnviroment.initialize(activeLanguageSetup);
+        executionEnviroment.updateRuntimeOptions(runtimeOptions);
     });
 
     if (initializer)
@@ -1117,6 +1182,7 @@ function setupIDEButtonEvents() {
     // Add events for the main program buttons
     setupProgramButton("runProgram", runProgram);
     setupProgramButton("continueProgram", continueProgram);
+    setupProgramButton("stepProgram", continueProgram);
     setupProgramButton("restartProgram", restartProgram);
     setupProgramButton("pauseProgram", pauseProgram);
     setupProgramButton("terminateProgram", stopProgram);
@@ -1597,7 +1663,45 @@ function setupProgramExecutionEvents(){
             e.reject(err);
         }
     });
+
+    // Highlight current line when debugging
+    let currentLineMark = null;
+    executionEnviroment.addEventListener("highlightCurrentLine", function(e){
+        for(let i = 0; i < editors.length; i ++) {
+            let editor = editors[i];
+
+            if (editor.editor._sko_current_line)
+                editor.editor.removeLineClass(editor.editor._sko_current_line, "wrap", "current-line");
+
+            if (e.filename && editor.filename != e.filename)
+                continue;
+
+            if (e.filename)
+                SwitchToTab(editor);
+
+            editor = editor.editor;
+
+            if (e.line != null){
+                if (editor.lineCount() < e.line)
+                    e.line = editor.lineCount();
+                editor._sko_current_line = editor.addLineClass(e.line, "wrap", "current-line");
+                editor.scrollIntoView({line:e.line, char:0}, 200);
+            }
+
+            if (currentLineMark)
+                currentLineMark.clear();
+
+            currentLineMark = editor.markText(
+                { line: e.line, ch: e.charStart },
+                { line: e.line, ch: e.charEnd },
+                {
+                    className:'current-line-expr',
+                }
+            );
+        }
+    });
 }
+
 
 // ----- Handle "Project Opened in Another Tab" Conflict -----
 let projectConflictModal = null;
@@ -1752,7 +1856,8 @@ function AddWindowListeners(){
 
                             await FSEnsurePath(unifiedFS, file.path);
 
-                            await unifiedFS.writeFile(file.path, file.data);
+                            if (m.data.overwrite || ! (await unifiedFS.storedProject.access((project)=>project.readFile(file.path))))
+                                await unifiedFS.writeFile(file.path, file.data);
                         }
                     });
                 }
@@ -1785,6 +1890,21 @@ function AddWindowListeners(){
                 });
                 break;
 
+            case "ExitBlockEditMode":
+                for (let i = 0; i < editors.length; i ++) {
+                    editors[i].exitBlockEditMode();
+                }
+                console.log("done");
+                break;
+
+            case "CloseAllCodeEditors":
+                closeAllCodeEditors();
+                break;
+
+            case "OpenCodeEditors":
+                openCodeEditors();
+                break;
+
             case "RenameProject":
                 ImportToProjectQueue.Schedule("RenameProject", async function (){
                     await appStorage.access((s)=>s.renameProject(storedProject.projectID, m.data.name));
@@ -1792,7 +1912,7 @@ function AddWindowListeners(){
                 break;
 
             case "ShowMessage":
-                ImportToProjectQueue.Schedule("RenameProject", async function (){
+                ImportToProjectQueue.Schedule("ShowMessage", async function (){
                     ShowMessagePopup(parseBasicFormatting(m.data.title), parseBasicFormatting(m.data.message), undefined, m.data.block);
                     if (m.data.block) {
                         // prevents any warnings about access from other tabs

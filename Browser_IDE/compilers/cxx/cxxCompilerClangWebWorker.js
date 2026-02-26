@@ -65,7 +65,20 @@ async function preloadSysroot(FS, sysroot){
 
 // print utility
 let silenceCompilerOutput = false;
+let recordCompilerOutput = false;
+let recordedOutput = [];
+
+function beginRecordingOutput(){
+    recordedOutput = [];
+    recordCompilerOutput = true;
+}
+function endRecordingOutput(){
+    recordCompilerOutput = false;
+    return recordedOutput;
+}
 function print(message){
+    if (recordCompilerOutput)
+        recordedOutput.push(message);
     if (silenceCompilerOutput)
         return;
 
@@ -116,7 +129,7 @@ promiseChannel.setEventListener("setupUserCode", async function(data){
     await setupUserCode(data.codeFiles);
 });
 promiseChannel.setEventListener("compileObject", async function(data){
-    return await compileObject(data.arguments, data.outputName);
+    return await compileObject(data.arguments, data.outputName, data.options);
 });
 promiseChannel.setEventListener("setupUserObjects", async function(data){
     await setupUserObjects(data.objects);
@@ -159,7 +172,7 @@ async function initializeSystemRoot(sysroot){
     await preloadSysroot(lld.FS, sysroot);
 
     // setup additional 'undefined symbols', that are JavaScript function imports
-    let additional_undefined_symbols = "__sko_process_events";
+    let additional_undefined_symbols = "__sko_process_events\n__output_debugger_message__";
 
     lld.FS.writeFile('/lib/libemscripten_js_symbols.txt',
        lld.FS.readFile('/lib/libemscripten_js_symbols.txt',  { encoding: 'utf8' })+"\n"+additional_undefined_symbols,
@@ -176,19 +189,25 @@ function setupUserCode(codeFiles){
 }
 
 // compile user code and return the output
-function compileObject(arguments, outputName){
+function compileObject(arguments, outputName, {silent=false}={}){
     tidyClang();
 
+    beginRecordingOutput();
+    silenceCompilerOutput = silent;
     // Might be good to include '-fno-exceptions', '-no-pthread'
     let exitCode = clang.callMain(arguments);
+    let stdout = endRecordingOutput();
+    silenceCompilerOutput = false;
 
     tidyClang(); // found it safest to do this twice, otherwise sometimes Clang still complained...
 
     let output = null;
     if (exitCode == 0 && outputName != null)
         output = clang.FS.readFile(outputName);
+    else if (exitCode == 0 && outputName == null)
+        output = exitCode;
 
-    return output;
+    return {blob: output, stdout:stdout};
 }
 
 // write user object files

@@ -1,3 +1,4 @@
+
 // utility functions for reporting errors from Clang
 function removeAnsiFromString(text){
     return text.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '');
@@ -84,28 +85,52 @@ export const writeFile = async (name, source) => {
         displayEditorNotification("Failed to compile due to internal error!</br>"+err.toString(), NotificationIcons.CRITICAL_ERROR);
     }
 }
-export const compileObject = async (name, source) => {
+function assert(condition, message) {
+    if (!condition) {
+        throw new Error(message || "Assertion failed");
+    }
+}// --- Main Compilation Logic ---
+
+export const compileObject = async (name, source, {isDebug=false}={}) => {
     let output = null;
 
     try {
+        if (isDebug) {
+            let debugFunctions = await import("./cxxCompilerDebugPreprocess.js");
+
+            let result = await debugFunctions.preprocessDebugSourceCode(name, source, promiseChannel);
+
+            if (!result.processedSource)
+                return result;
+
+            source = result.processedSource;
+        }
+
         await promiseChannel.postMessage("setupUserCode", {
             codeFiles : [{
                 name: name,
                 source: source
             }]
         });
-        output = await promiseChannel.postMessage("compileObject", {
+        output = (await promiseChannel.postMessage("compileObject", {
             arguments: ['-idirafter/lib/clang/16.0.4/include/', '-fdiagnostics-color=always', '-c', name, "-o", name+".o"],
-            outputName: name+".o"
-        });
+            outputName: name+".o",
+            options: {silent: isDebug}
+        }));
+
+        if (isDebug && !(output.blob)) {
+            console.error(output.stdout);
+            throw new Error("Debug mode compilation failed! This is a problem with our code, not yours. Sorry!\nFor SplashKit Online developers, see browser console for details.");
+        }
     }
     catch(err) {
+        console.error(err);
         displayEditorNotification("Failed to compile due to internal error!</br>"+err.toString(), NotificationIcons.CRITICAL_ERROR);
     }
 
     return {
         name: name+".o",
-        output: output
+        output: output.blob
     };
 }
 

@@ -43,7 +43,7 @@ class ExecutionEnvironmentInternal {
             self.ClearTerminal(data.message);
         });
         this.channel.setEventListener("RunProgram", async function (data){
-            await self.runProgram(data.program);
+            await self.runProgram(data.program, data.runtimeOptions);
         });
         this.channel.setEventListener("PauseProgram", async function (data){
             await self.pauseProgram();
@@ -53,6 +53,9 @@ class ExecutionEnvironmentInternal {
         });
         this.channel.setEventListener("StopProgram", async function (data){
             await self.stopProgram();
+        });
+        this.channel.setEventListener("UpdateRuntimeOptions", async function (data){
+            await self.updateRuntimeOptions(data.runtimeOptions);
         });
     }
 
@@ -65,7 +68,7 @@ class ExecutionEnvironmentInternal {
     sendProgram(program)                      { throw new Error("Unhandled sendProgram");}
     hotReloadFile(name, code)                 { throw new Error("Unhandled hotReloadFile");}
     resetExecutionScope()                     { throw new Error("Unhandled resetExecutionScope");}
-    async runProgram(program)                 { throw new Error("Unhandled runProgram");}
+    async runProgram(program, runtimeOptions) { throw new Error("Unhandled runProgram");}
     async pauseProgram()                      { throw new Error("Unhandled pauseProgram");}
     async continueProgram()                   { throw new Error("Unhandled continueProgram");}
     async stopProgram()                       { throw new Error("Unhandled stopProgram");}
@@ -75,6 +78,7 @@ class ExecutionEnvironmentInternal {
     async unlink(path)                        { throw new Error("Unhandled unlink");}
     async rename(oldPath, newPath)            { throw new Error("Unhandled rename");}
     async initializeFilesystem(folders, files){ throw new Error("Unhandled initializeFilesystem");}
+    async updateRuntimeOptions(runtimeOptions){ throw new Error("Unhandled updateRuntimeOptions");}
 
     ReportError(block, message, line,stackTrace, formatted) {
         ReportError(block, message, line,stackTrace, formatted); // call external function
@@ -86,6 +90,9 @@ class ExecutionEnvironmentInternal {
 
     WriteToTerminal(message) {
         writeTerminal(message);
+        if (handExecutionDrawing) {
+            handExecutionDrawing.print(message);
+        }
     }
 
     ClearTerminal(message) {
@@ -102,10 +109,45 @@ class ExecutionEnvironmentInternal {
         parent.postMessage({type:"executionEnvironmentGetFilesystemRequest"},"*");
     }
 
+    UpdateRuntimeOptionsBase(runtimeOptions) {
+        if (runtimeOptions.showHandExecution) {
+            let ops = runtimeOptions.handExecutionSettings;
+
+            if (!handExecutionDrawing) {
+                handExecutionDrawing = new HandExecutionDrawing({
+                    valueMode: ops.modes.valueMode,
+                    stackMode: ops.modes.stackMode,
+                    heapMode: ops.modes.heapMode,
+                    width: ops.width,
+                    height: ops.height,
+                });
+                document.getElementById("canvasContainer").appendChild(handExecutionDrawing.container);
+                showCanvas(false);
+            }
+
+            handExecutionDrawing.valueMode = ops.modes.valueMode;
+            handExecutionDrawing.stackMode = ops.modes.stackMode;
+            handExecutionDrawing.heapMode = ops.modes.heapMode;
+            handExecutionDrawing.width.transition(ops.width);
+            handExecutionDrawing.height.transition(ops.height);
+        }
+        else if (!runtimeOptions.showHandExecution && handExecutionDrawing) {
+            handExecutionDrawing.container.remove();
+            handExecutionDrawing = null;
+        }
+
+        this.runtimeOptions = runtimeOptions;
+    }
+
     RunProgramBase(){
         unlockOutputViewerSwitch();
         if (SKO.useEmbeddedInterface)
-            self.clearTerminal();
+            clearTerminal();
+
+        if (handExecutionDrawing) {
+            handExecutionDrawing.initialize();
+            this.PreferCanvas();
+        }
     }
 
     PreferCanvas() {
@@ -113,6 +155,34 @@ class ExecutionEnvironmentInternal {
     }
 
     PreferTerminal() {
+        // The terminal output is shown on the
+        // hand execution anyway, so redirect there
+        if (handExecutionDrawing) {
+            this.PreferCanvas();
+            return;
+        }
+
         showTerminal(true);
+    }
+
+    DebuggerMessage(data){
+        if (this.runtimeOptions.enableSingleStepping || this.runtimeOptions.forceStepLineHighlighting)
+            executionEnvironment.channel.postMessage("highlightCurrentLine", {filename: data.file, line: data.line, charStart: data.charStart, charEnd: data.charEnd});
+
+        if (!handExecutionDrawing)
+            return;
+
+        let loc = [data.line, data.charStart, data.charEnd];
+
+        if (data.event == "DECL"){
+            let updateMemory = data.val.length == 0 || data.val[0] != "PreventUpdate";
+            handExecutionDrawing.allocateVariable(data.structure, updateMemory?data.val:[], updateMemory);
+        }
+        if (data.event == "ASSIGN"){
+            handExecutionDrawing.updateValues(data.val);
+        }
+        if (data.event == "DESTRUCT"){
+            handExecutionDrawing.freeMemory(data.val);
+        }
     }
 }

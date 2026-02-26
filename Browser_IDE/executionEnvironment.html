@@ -9,6 +9,9 @@
     <link rel="stylesheet" href="stylesheet.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.9.1/font/bootstrap-icons.css">
     <script src="split.js/split.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Gaegu&display=swap');
+    </style>
 </head>
 
 <body class="sk-body">
@@ -19,8 +22,8 @@
         </div> 
     </div>
 	<div class="sk-column" style="max-height: 100%;">
-		<div id="canvasContainer" class="sk-contents">
-			<canvas id="canvas" style="margin: auto; outline: none;" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
+		<div id="canvasContainer" class="sk-contents" style="justify-content: center;">
+			<canvas id="canvas" width="0" height="0" style="outline: none;" oncontextmenu="event.preventDefault()" tabindex="-1"></canvas>
 		</div>
 		<div id="terminalOutputContainer" style="display: flex; flex-direction: column;">
 			<div class="sk-header sk-header-indent">
@@ -45,6 +48,8 @@
 <script src="splashKitOnlineEnvParams.js"></script>
 <script src="fallibleMessage.js"></script>
 <script src="downloadHandler.js"></script>
+<script src="HTMLBuilderUtil.js"></script>
+<script src="HandExecutionDrawing.js"></script>
 <script src="executionEnvironment_Page.js"></script>
 <script src="runtimes/ExecutionEnvironmentInternalLoader.js"></script>
 

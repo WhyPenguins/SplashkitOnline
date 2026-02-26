@@ -20,6 +20,13 @@ let SKO = (function(){
             return parsedRawParams[paramName] ?? _default;
     }
 
+    function ensureNumber(param, _default){
+        param = Number(param);
+        if (Number.isNaN(param))
+            return _default;
+        return param;
+    }
+
     let isPreview =   (page_url.pathname.indexOf("/pr-previews/") >= 0)
                    || (page_url.pathname.indexOf("/branch-previews/") >= 0);
 
@@ -34,6 +41,14 @@ let SKO = (function(){
         useCompressedBinaries: getEnvParam("useCompressedBinaries", "on", true) == "on",
         useMinifiedInterface: getEnvParam("useMinifiedInterface") == "on",
         useEmbeddedInterface: getEnvParam("useEmbeddedInterface") == "on",
+        theme: getEnvParam("theme", "dracula"),
+        enableDebugging: getEnvParam("enableDebugging") == "on",
+        enableSingleStepping: getEnvParam("enableSingleStepping") == "on",
+        forceStepLineHighlighting: getEnvParam("forceStepLineHighlighting") == "on",
+        stepLineHighlightingDelay: ensureNumber(getEnvParam("stepLineHighlightingDelay", "50"), 50),
+        handExecutionMode: getEnvParam("handExecutionMode", ""),//"", faithful, clean, realtime
+        handExecutionWidth: ensureNumber(getEnvParam("handExecutionWidth", "550"), 550),
+        handExecutionHeight: ensureNumber(getEnvParam("handExecutionHeight", "300"), 300),
         isPRPreview: getEnvParam("isPRPreview", isPreview ? "on" : "off") == "on",
     };
 })();

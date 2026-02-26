@@ -59,6 +59,9 @@ var Module = {
             case "Ping":
                 sendWorkerCommand("pingReply", {time: data.time});
                 break;
+            case "DebuggerMessage":
+                executionEnvironment.DebuggerMessage(data.data);
+                break;
             case "stdinAwait":
                 setTerminalInputAwaitState(true);
                 break;
@@ -92,7 +95,7 @@ class ExecutionEnvironmentInternalCXX extends ExecutionEnvironmentInternal{
         clearInterval(this.keepAliveID);
 
         let boundThis = this;
-        if (worker != null) {
+        if (typeof worker !=="undefined" && worker != null) {
             await new Promise((resolve,reject) => {
                 sendWorkerCommand("terminate", {});
 
@@ -109,7 +112,13 @@ class ExecutionEnvironmentInternalCXX extends ExecutionEnvironmentInternal{
 
         setTerminalInputAwaitState(false);
     }
-    async runProgram(program){
+
+    async updateRuntimeOptions(runtimeOptions){
+        this.UpdateRuntimeOptionsBase(runtimeOptions);
+    }
+
+    async runProgram(program, runtimeOptions){
+        this.updateRuntimeOptions(runtimeOptions);
         this.RunProgramBase();
 
         await this.stopProgram();
@@ -123,6 +132,8 @@ class ExecutionEnvironmentInternalCXX extends ExecutionEnvironmentInternal{
         StartProgramWorker(program, {
             sampleRate: audioPlayer.audioContext.sampleRate
         });
+
+        worker.postMessage({ target: 'custom', userData: {"event": "updateRuntimeOptions", runtimeOptions}, preMain: true });
 
         // attempt to synchronize to main project file system
         // this just schedules all the commands, which will
@@ -150,7 +161,7 @@ class ExecutionEnvironmentInternalCXX extends ExecutionEnvironmentInternal{
     }
 
     async sendFSCommandToWorker(command){
-        if (worker == null)
+        if (typeof worker !=="undefined" && worker == null)
             return;// no need to throw, since we'll resync next time we run
 
         await sendAwaitableWorkerCommand(command.type, command);
