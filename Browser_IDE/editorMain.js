@@ -797,6 +797,7 @@ let runtimeOptions = {
     enableDebugging:           SKO.enableDebugging,
     enableSingleStepping:      SKO.enableSingleStepping,
     forceStepLineHighlighting: SKO.forceStepLineHighlighting,
+    forceStepLineHighlightingInner: SKO.forceStepLineHighlightingInner,
     stepLineHighlightingDelay: SKO.stepLineHighlightingDelay,
     showHandExecution:         SKO.handExecutionMode != "",
     handExecutionSettings: {

@@ -21,6 +21,8 @@ let SKO = (function(){
     }
 
     function ensureNumber(param, _default){
+        if (param == "")
+            return _default;
         param = Number(param);
         if (Number.isNaN(param))
             return _default;
@@ -31,6 +33,7 @@ let SKO = (function(){
                    || (page_url.pathname.indexOf("/branch-previews/") >= 0);
 
     // I feel like there might be too many here, perhaps they can be rationalized better?
+    // ^ I agree
     return {
         language: getEnvParam("language", "C++", false), /*don't decode, so + remains + rather than a space*/
         initializeProjectName: getEnvParam("initializeProjectName"), // ensures a project with this name exists - loads if already exists, otherwise creates
@@ -45,10 +48,11 @@ let SKO = (function(){
         enableDebugging: getEnvParam("enableDebugging") == "on",
         enableSingleStepping: getEnvParam("enableSingleStepping") == "on",
         forceStepLineHighlighting: getEnvParam("forceStepLineHighlighting") == "on",
+        forceStepLineHighlightingInner: getEnvParam("forceStepLineHighlightingInner") == "on",
         stepLineHighlightingDelay: ensureNumber(getEnvParam("stepLineHighlightingDelay", "50"), 50),
         handExecutionMode: getEnvParam("handExecutionMode", ""),//"", faithful, clean, realtime
-        handExecutionWidth: ensureNumber(getEnvParam("handExecutionWidth", "550"), 550),
-        handExecutionHeight: ensureNumber(getEnvParam("handExecutionHeight", "300"), 300),
+        handExecutionWidth: ensureNumber(getEnvParam("handExecutionWidth", ""), 550),
+        handExecutionHeight: ensureNumber(getEnvParam("handExecutionHeight", ""), 300),
         isPRPreview: getEnvParam("isPRPreview", isPreview ? "on" : "off") == "on",
     };
 })();
