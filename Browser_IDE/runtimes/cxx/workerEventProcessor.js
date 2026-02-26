@@ -16,6 +16,8 @@ let pingReplyDeadline = -1;
 let currentPingSendTime = -1;
 let lastPingDelay = 0;
 
+let normalPaused = false;
+
 function sendPing(now) {
     postCustomMessage({
         type: "Ping",
@@ -35,6 +37,8 @@ function handleEvent([event, args]){
             while(true){ } // just pause until the worker is killed
             break;
         case "pause":
+            if (normalPaused)
+                break;
             postCustomMessage({
                 type: "ProgramPaused"
             });
@@ -219,6 +223,8 @@ function __sko_process_events(){
 // a busy loop for when paused
 // TODO: Refactor, this is doing too much and has too many parameters
 function pauseLoop(waitOn, reportContinue=true, handleEvents=true, waitUntil=-1, customWaitFunction=null, sleepTime=null) {
+    if (waitOn == "continue")
+        normalPaused = true;
     let paused = true;
     let pauseStart = performance.now();
     while (paused) {
@@ -246,6 +252,8 @@ function pauseLoop(waitOn, reportContinue=true, handleEvents=true, waitUntil=-1,
         if (sleepTime && (performance.now() - pauseStart) > sleepTime*10)
             sleep(sleepTime);
     }
+    if (waitOn == "continue")
+        normalPaused = false;
 
     if (reportContinue)
         postCustomMessage({
@@ -388,6 +396,7 @@ Module['preInit'] = function (){
 // Debugging
 let runtimeOptions = null;
 let lastLine;
+
 function __output_debugger_message__(line, strPtr){
     let text = Module['UTF8ToString'](strPtr);
     __sko_debugger_message(line, JSON.parse(text));
