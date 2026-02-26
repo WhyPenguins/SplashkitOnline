@@ -578,7 +578,8 @@ textarea {
 }
 
 .current-line{
-  background-color: #34444d;
+  background-color: #34444d !important;
+  transition: initial !important;
 }
 
 .current-line-expr{
@@ -1317,4 +1318,38 @@ li.CodeMirror-hint-active {
   display: flex;
   justify-content: center;
   flex-direction: column;
+}
+
+
+/* lazy light theme */
+html[data-theme="light"] .sk-body {
+  color: #333;
+  background-color: white;
+  color-scheme: light;
+}
+
+html[data-theme="light"] .sk-contents {
+  box-shadow: initial;
+  border: initial;
+  color: #333;
+  background-color: #fcfefb;
+}
+
+html[data-theme="light"] .sk-header {
+  background-color: #f4f7f3;
+  box-shadow: 0 1px 0 0.4px #9ed098 inset;
+  color: #333;
+}
+
+html[data-theme="light"] #runProgram,
+html[data-theme="light"] #collapsedRunProgram {
+    color: #258100;
+}
+
+html[data-theme="light"] button:hover:enabled {
+    background-color: #ddf3ce;
+}
+
+html[data-theme="light"] .active-mini-tab {
+    color: #258100;
 }

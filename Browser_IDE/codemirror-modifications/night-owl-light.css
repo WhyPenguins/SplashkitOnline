@@ -1,0 +1,74 @@
+/*
+
+    Name:       night-owl-light (ish)
+
+Modified from Dracular theme:
+    Author:     Michael Kaminsky (http://github.com/mkaminsky11)
+
+    Original dracula color scheme by Zeno Rocha (https://github.com/zenorocha/dracula-theme)
+*/
+.cm-s-night-owl-light.CodeMirror, .cm-s-night-owl-light .CodeMirror-gutters {
+  background-color: #f4f7f3 !important;
+  color: #5f636f !important;
+  border: none;
+}
+.cm-s-night-owl-light .CodeMirror-gutters { color: #282a36; }
+.cm-s-night-owl-light .CodeMirror-cursor { border-left: solid thin #333; }
+.cm-s-night-owl-light .CodeMirror-linenumber { color: #6D8A88; }
+.cm-s-night-owl-light .CodeMirror-selected { background: rgb(19 30 12 / 10%); }
+.cm-s-night-owl-light .CodeMirror-line::selection, .cm-s-night-owl-light .CodeMirror-line > span::selection, .cm-s-night-owl-light .CodeMirror-line > span > span::selection { background: rgba(255, 255, 255, 0.10); }
+.cm-s-night-owl-light .CodeMirror-line::-moz-selection, .cm-s-night-owl-light .CodeMirror-line > span::-moz-selection, .cm-s-night-owl-light .CodeMirror-line > span > span::-moz-selection { background: rgba(255, 255, 255, 0.10); }
+.cm-s-night-owl-light span.cm-comment { color: #5f636f; }
+.cm-s-night-owl-light span.cm-string, .cm-s-night-owl-light span.cm-string-2 { color: #984e4d; }
+.cm-s-night-owl-light span.cm-number { color: #aa0982; }
+.cm-s-night-owl-light span.cm-variable { color: #403f53; }
+.cm-s-night-owl-light span.cm-variable-2 { color: white; }
+.cm-s-night-owl-light span.cm-def { color: #82aaff; }
+.cm-s-night-owl-light span.cm-operator { color: #c792ea; }
+.cm-s-night-owl-light span.cm-keyword { color: #8844ae; }
+.cm-s-night-owl-light span.cm-atom { color: #bd93f9; }
+.cm-s-night-owl-light span.cm-meta { color: #8844ae; }
+.cm-s-night-owl-light span.cm-tag { color: #ff79c6; }
+.cm-s-night-owl-light span.cm-attribute { color: #50fa7b; }
+.cm-s-night-owl-light span.cm-qualifier { color: #50fa7b; }
+.cm-s-night-owl-light span.cm-property { color: #096e72; }
+.cm-s-night-owl-light span.cm-builtin { color: #50fa7b; }
+.cm-s-night-owl-light span.cm-variable-3, .cm-s-night-owl-light span.cm-type { color: #8844ae; }
+.cm-s-night-owl-light span.cm-call { color: #3b61b0; }
+.cm-s-night-owl-light span.cm-object { color: #3b61b0; }
+
+.cm-s-night-owl-light .CodeMirror-activeline-background { background: rgba(255,255,255,0.1); }
+.cm-s-night-owl-light .CodeMirror-matchingbracket { text-decoration: underline; color: white !important; }
+
+/* Scrollbar Styling */
+.cm-s-night-owl-light .CodeMirror-vscrollbar::-webkit-scrollbar,
+.cm-s-night-owl-light .CodeMirror-vscrollbar::-webkit-scrollbar-track,
+.cm-s-night-owl-light .CodeMirror-hscrollbar::-webkit-scrollbar,
+.cm-s-night-owl-light .CodeMirror-hscrollbar::-webkit-scrollbar-track {
+  background-color: inherit;
+  border-radius: calc(var(--ec-brdRad) + var(--ec-brdWd));
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.cm-s-night-owl-light .CodeMirror-vscrollbar::-webkit-scrollbar-thumb,
+.cm-s-night-owl-light .CodeMirror-hscrollbar::-webkit-scrollbar-thumb{
+  background-color: #FFF2;
+  border: 4px solid transparent;
+  background-clip: content-box;
+  border-radius: 10px;
+}
+
+.cm-s-night-owl-light .CodeMirror-vscrollbar::-webkit-scrollbar-thumb:hover,
+.cm-s-night-owl-light .CodeMirror-hscrollbar::-webkit-scrollbar-thumb:hover{
+  background-color: #FFF4;
+  width:10px;
+}
+
+.cm-s-night-owl-light .current-line-expr {
+  background-color: #4191484a;
+}
+
+.cm-s-night-owl-light .current-line {
+    background-color: #b9e1bf7d!important;
+}

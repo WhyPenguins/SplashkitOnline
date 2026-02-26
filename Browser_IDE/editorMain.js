@@ -1318,6 +1318,9 @@ function setupMinifiedInterface() {
         document.body.classList.add("sk-minified");
         document.body.classList.add("sk-embedded");
     }
+    if (SKO.theme.includes("light")) {
+        document.documentElement.dataset.theme = "light";
+    }
 }
 
 // Utility function for saving/loading the code blocks

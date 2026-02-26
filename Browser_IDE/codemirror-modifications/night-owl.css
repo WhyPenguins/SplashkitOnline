@@ -64,3 +64,11 @@ Modified from Dracular theme:
   background-color: #FFF4;
   width:10px;
 }
+
+.cm-s-night-owl .current-line-expr {
+  background-color: #4d68479c;
+}
+
+.cm-s-night-owl .current-line {
+    background-color: #97a49a26 !important;
+}

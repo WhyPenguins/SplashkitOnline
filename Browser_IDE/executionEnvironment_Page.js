@@ -259,6 +259,10 @@ if (!SKO.useEmbeddedInterface) // no resizing/gutters in embedded
     });
 }
 
+if (SKO.theme.includes("light")) {
+    document.documentElement.dataset.theme = "light";
+}
+
 function updateLoadingProgress(progress) {
     const progressBar = document.getElementById('loading-progress');
     if (progressBar) {
