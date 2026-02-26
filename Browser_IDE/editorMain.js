@@ -760,15 +760,15 @@ let handExecutionModes = {
 }
 
 let runtimeOptions = {
-    enableDebugging:           true,
-    enableSingleStepping:      true,
-    forceStepLineHighlighting: false,
-    stepLineHighlightingDelay: 50,
-    showHandExecution:         true,
+    enableDebugging:           SKO.enableDebugging,
+    enableSingleStepping:      SKO.enableSingleStepping,
+    forceStepLineHighlighting: SKO.forceStepLineHighlighting,
+    stepLineHighlightingDelay: SKO.stepLineHighlightingDelay,
+    showHandExecution:         SKO.handExecutionMode != "",
     handExecutionSettings: {
-        width: 550,
-        height: 450,
-        modes: handExecutionModes["faithful"]
+        width: SKO.handExecutionWidth,
+        height: SKO.handExecutionHeight,
+        modes: handExecutionModes[SKO.handExecutionMode]
     }
 };
 
