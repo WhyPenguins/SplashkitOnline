@@ -353,9 +353,21 @@ class CodeViewer {
             }
         }
 
+        this.editor.on("copy", function(event, change) {
+            codeViewerThis.lastCopy = window.getSelection().toString();
+        })
         // block pasting :)
         this.editor.on("beforeChange", function(event, change) {
             if (change.origin == "paste"){
+                let pastedText = change.text.join("\n");
+
+                // if they copy & pasted within the
+                // window, all good!
+                if (codeViewerThis.lastCopy && codeViewerThis.lastCopy.indexOf(pastedText) >= 0)
+                    return;
+                if (codeViewerThis.editor.getValue().indexOf(pastedText) >= 0)
+                    return;
+
                 displayEditorNotification("You'll learn better if you type it yourself :)", NotificationIcons.INFO, 6);
                 change.cancel();
             }
