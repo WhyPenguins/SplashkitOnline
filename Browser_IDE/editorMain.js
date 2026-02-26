@@ -1689,7 +1689,8 @@ function setupProgramExecutionEvents(){
 
     executionEnviroment.addEventListener("mirrorRequest", async function(e){
         try {
-            displayEditorNotification("Loading project files...", NotificationIcons.INFO);
+            // TODO: Detect if there are enough project files to make showing this worth it
+            //displayEditorNotification("Loading project files...", NotificationIcons.INFO);
             await MirrorToExecutionEnvironment();
             e.resolve();
         }
