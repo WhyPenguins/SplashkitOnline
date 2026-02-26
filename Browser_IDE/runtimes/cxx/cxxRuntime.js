@@ -32,6 +32,10 @@ var Module = {
         switch(data.type){
             case "ProgramEnded":
                 executionEnvironment.stopProgram();
+
+                setTimeout(function(){
+                    executionEnvironment.ClearCanvas();
+                }, 100);
                 break;
             case "ProgramPaused":
                 executionEnvironment.signalPaused();

@@ -99,6 +99,12 @@ class ExecutionEnvironmentInternal {
         clearTerminal();
     }
 
+    ClearCanvas(){
+        let canvas = document.getElementById("canvas");
+        canvas.width = "0";
+        canvas.height = "0";
+    }
+
     InputFromTerminal(message) { throw new Error("Unhandled InputFromTerminal"); }
 
     Reload() {
