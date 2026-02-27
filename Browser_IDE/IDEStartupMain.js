@@ -117,58 +117,63 @@ async function StartIDE() {
         InitializeProjectQueue.Schedule("LoadProjectInit", async function InitializeProjectQueue (isCanceled){
             await isCanceled();
 
-            await appStorage.attach();
+            try {
+                await appStorage.attach();
 
-            // find/create the project
-            let projectID = null;
+                // find/create the project
+                let projectID = null;
 
-            // if loading/creating by name
-            if (SKO.initializeProjectName){
-                let project = await appStorage.getProjectByName(SKO.initializeProjectName);
+                // if loading/creating by name
+                if (SKO.initializeProjectName){
+                    let project = await appStorage.getProjectByName(SKO.initializeProjectName);
 
-                if (SKO.cleanProject && project){
-                    await appStorage.access((s) => s.deleteProject(project.id));
-                    await storedProject.deleteProject(project.id);
-                    project = null;
+                    if (SKO.cleanProject && project){
+                        await appStorage.access((s) => s.deleteProject(project.id));
+                        await storedProject.deleteProject(project.id);
+                        project = null;
+                    }
+
+                    if (!project) {
+                        projectID = await appStorage.createProject(SKO.initializeProjectName, SKO.language);
+
+                        if (!projectID) {
+                            throw new Error("!projectID from SKO.initializeProjectName");
+                        }
+                    }
+                    else
+                        projectID = project.id;
                 }
+                // if loading by ID
+                else if (SKO.projectID){
+                    projectID = SKO.projectID;
+                }
+                // otherwise load last open project, or create if first run
+                else {
+                    projectID = await appStorage.access(async (s)=>{
+                        return s.getLastOpenProject();
+                    })
 
-                if (!project) {
-                    projectID = await appStorage.createProject(SKO.initializeProjectName, SKO.language);
+                    // check if it still exists
+                    let project = null;
+                    if (projectID)
+                        project = await appStorage.getProject(projectID);
 
-                    if (!projectID) {
-                        IDECriticalStorageFail = true;
-                        reportCriticalError("Failed to create project - out of storage space?","");
+                    if (!project) {
+                        projectID = await appStorage.createProject(undefined, SKO.language);
+                        if (!projectID) {
+                            throw new Error("!projectID from end");
+                        }
                     }
                 }
-                else
-                    projectID = project.id;
+                // Load and initialize it!
+                if (!IDECriticalStorageFail)
+                    await LoadProject(projectID, SKO.defaultInitializeProject ? null : function(){}, isCanceled);
             }
-            // if loading by ID
-            else if (SKO.projectID){
-                projectID = SKO.projectID;
+            catch(err) {
+                IDECriticalStorageFail = true;
+                reportCriticalError("Failed to load or create project - out of storage space?", err.toString(), err);
+                return;
             }
-            // otherwise load last open project, or create if first run
-            else {
-                projectID = await appStorage.access(async (s)=>{
-                    return s.getLastOpenProject();
-                })
-
-                // check if it still exists
-                let project = null;
-                if (projectID)
-                    project = await appStorage.getProject(projectID);
-
-                if (!project) {
-                    projectID = await appStorage.createProject(undefined, SKO.language);
-                    if (!projectID) {
-                        IDECriticalStorageFail = true;
-                        reportCriticalError("Failed to create project - out of storage space?","");
-                    }
-                }
-            }
-            // Load and initialize it!
-            if (!IDECriticalStorageFail)
-                await LoadProject(projectID, SKO.defaultInitializeProject ? null : function(){}, isCanceled);
         });
     }
 

@@ -66,7 +66,7 @@ class __AppStorageRW{
         let AS = this;
         return new Promise((resolve, reject)=>{
             if (AS.db != null)
-                reject();
+                reject("No database");
 
             let req = indexedDB.open("SplashKitOnline", 1);
 
@@ -92,7 +92,7 @@ class __AppStorageRW{
 
             req.onerror = async (e) => {
                 AS.owner.dispatchEvent(new Event("connectionFailed"));
-                reject();
+                reject("Connection failed");
             };
         });
     }
