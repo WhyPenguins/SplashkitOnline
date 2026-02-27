@@ -81,10 +81,10 @@ class __IDBStoredProjectRW{
         return new Promise(function(resolve, reject){
 
             if (IDBFS.owner.projectID == null)
-                return reject();
+                return reject("No project");
 
             if (IDBFS.db != null)
-                reject();
+                reject("No database");
 
             let openRequest = indexedDB.open(STORED_PROJECT_DB_PREFIX + IDBFS.owner.projectID, 1);
 
@@ -110,7 +110,7 @@ class __IDBStoredProjectRW{
             };
             openRequest.onerror = function(e){
                 IDBFS.owner.dispatchEvent(new Event("connectionFailed"));
-                reject();
+                reject("Connection failed");
             };
         });
     }

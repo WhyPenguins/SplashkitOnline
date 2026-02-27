@@ -1166,7 +1166,9 @@ async function LoadProject(projectID, initializer=null, isCanceled){
 
     updateURLSettings("project", projectID);
 
-    let project = await appStorage.getProject(projectID);
+    let project;
+    if (projectID)
+        project = await appStorage.getProject(projectID);
 
     if (!project){
         displayEditorNotification("Failed to load project! Perhaps this project doesn't exist?", NotificationIcons.CRITICAL_ERROR, -1,);
@@ -1840,6 +1842,36 @@ function setupProjectConflictAndConfirmationModals() {
     });
 }
 
+let IDECriticalFail = false;
+let IDECriticalStorageFail = false;
+
+// Used when the IDE cannot function anymore.
+// Destroys the execution environment and
+// informs user.
+function reportCriticalError(message, developerInfo, err) {
+    IDECriticalFail = true;
+
+    // if we have an error with an error stack (always appreciated)
+    if (err)
+        console.error(err);
+
+    let criticalErrorDialog = document.querySelector("#CriticalErrorDialog");
+    let details = criticalErrorDialog.querySelector("details");
+
+    criticalErrorDialog.style.display = "initial";
+
+    details.appendChild(document.createTextNode(message));
+    details.appendChild(document.createTextNode(developerInfo));
+
+    if (executionEnviroment.iFrame)
+        removeFadeOut(executionEnviroment.iFrame, 2000, ()=>{executionEnviroment.destroy();});
+    else
+        executionEnviroment.destroy();
+
+    for (let i = 0; i < editors.length; i ++) {
+        editors[i].exitBlockEditMode();
+    }
+}
 
 function addErrorEventListeners(){
     executionEnviroment.addEventListener("onDownloadFail", function(data) {
@@ -1856,7 +1888,7 @@ function addErrorEventListeners(){
     });
 
     executionEnviroment.addEventListener("onCriticalInitializationFail", function(data) {
-        displayEditorNotification("Failed to load critical part of IDE: "+data.message+". ", NotificationIcons.CRITICAL_ERROR);
+        reportCriticalError("Failed to load critical part of IDE.", data.message);
     });
 
 
@@ -1887,6 +1919,24 @@ function AddWindowListeners(){
             case "ImportFiles":
                 if (m.data.files) {
                     ImportToProjectQueue.Schedule("InitializeProjectFromOutsideWorld_ProjectFromFiles", async function (){
+                        if (m.data.files.length == 0)
+                            return;
+
+                        // If we can't read/write storage, let's just display the files as read-only
+                        // Just display the first file for now,
+                        // keep it simple
+                        // TODO: detect source files and open
+                        // multiple (see openCodeEditors() logic)
+                        if (IDECriticalStorageFail) {
+                            let file = m.data.files[0];
+                            let codeView = new CodeViewer(file.path);
+                            codeView.editor.setValue(file.data);
+
+                            editors.push(codeView);
+                            return;
+                        }
+
+
                         for (let i = 0; i < m.data.files.length; i ++) {
                             let file = m.data.files[i];
 
@@ -1910,6 +1960,9 @@ function AddWindowListeners(){
 
             case "EnterBlockEditMode":
                 ImportToProjectQueue.Schedule("EnterBlockEditMode", async function (){
+                    // allow the user to copy the code out if the IDE has failed
+                    if (IDECriticalFail || IDECriticalStorageFail) return;
+
                     for (let i = 0; i < m.data.files.length; i ++) {
                         let file = m.data.files[i];
                         let editor = getCodeEditor(file.path);
@@ -1930,7 +1983,6 @@ function AddWindowListeners(){
                 for (let i = 0; i < editors.length; i ++) {
                     editors[i].exitBlockEditMode();
                 }
-                console.log("done");
                 break;
 
             case "CloseAllCodeEditors":

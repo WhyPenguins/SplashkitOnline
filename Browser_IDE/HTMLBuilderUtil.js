@@ -108,7 +108,8 @@ function removeFadeOut( el, speed, callback) {
 
     el.style.opacity = 0;
     setTimeout(function() {
-        el.parentNode.removeChild(el);
+        if (el.parentNode)
+            el.parentNode.removeChild(el);
         if (callback)
             setTimeout(callback, 0);
     }, speed);

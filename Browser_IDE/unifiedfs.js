@@ -8,6 +8,14 @@ class UnifiedFS {
     constructor(_storedProject, _executionEnvironment){
         this.storedProject = _storedProject;
         this.executionEnvironment = _executionEnvironment;
+        this.isExecuting = false;
+    }
+
+    // If the program is executing, failing to write to the
+    // executionEnvironment is considered an exception and throws.
+    // Otherwise, it won't try writing to it yet.
+    setExecuting(_isExecuting) {
+        this.isExecuting = _isExecuting;
     }
 
     async mkdir(path){
@@ -16,8 +24,10 @@ class UnifiedFS {
         let err = undefined;
 
         try {
-            await this.executionEnvironment.mkdir(path);
-            tSucc = true;
+            if (this.isExecuting) {
+                await this.executionEnvironment.mkdir(path);
+                tSucc = true;
+            }
 
             await this.storedProject.access((project)=>project.mkdir(path));
             pSucc = true;
@@ -51,8 +61,10 @@ class UnifiedFS {
             let err = undefined;
 
             try {
-                await this.executionEnvironment.writeFile(path, data);
-                tSucc = true;
+                if (this.isExecuting) {
+                    await this.executionEnvironment.writeFile(path, data);
+                    tSucc = true;
+                }
 
                 await this.storedProject.access((project)=>project.writeFile(path, data));
                 pSucc = true;
@@ -81,8 +93,10 @@ class UnifiedFS {
             let err = undefined;
 
             try {
-                await this.executionEnvironment.rename(oldPath, newPath);
-                tSucc = true;
+                if (this.isExecuting) {
+                    await this.executionEnvironment.rename(oldPath, newPath);
+                    tSucc = true;
+                }
 
                 await this.storedProject.access((project)=>project.rename(oldPath, newPath));
                 pSucc = true;
@@ -113,8 +127,10 @@ class UnifiedFS {
             let err = undefined;
 
             try {
-                await this.executionEnvironment.unlink(path);
-                tSucc = true;
+                if (this.isExecuting) {
+                    await this.executionEnvironment.unlink(path);
+                    tSucc = true;
+                }
 
                 await this.storedProject.access((project)=>project.unlink(path));
                 pSucc = true;
@@ -142,7 +158,9 @@ class UnifiedFS {
         // folder in case we need to revert the deletion,
         // so what should be done?
 
-        if (t) await this.executionEnvironment.rmdir(path, recursive);
+        if (this.isExecuting) {
+            if (t) await this.executionEnvironment.rmdir(path, recursive);
+        }
         if (p) await this.storedProject.access((project)=>project.rmdir(path, recursive));
     }
 }

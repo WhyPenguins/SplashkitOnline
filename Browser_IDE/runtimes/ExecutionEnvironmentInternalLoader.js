@@ -109,7 +109,7 @@ async function registerServiceWorker(serviceWorkerLoadingProgress){
         });
     }
     catch(err) {
-        executionEnvironment.reportCriticalInitializationFail(
+        reportCriticalInitializationFail(
             "Error when modifying service workers. <br/>"+
             err.toString()
         );
@@ -149,7 +149,7 @@ async function registerServiceWorker(serviceWorkerLoadingProgress){
         return false;
     }
     catch(err){
-        executionEnvironment.reportCriticalInitializationFail(
+        reportCriticalInitializationFail(
             "Failed to initialize critical component: Service Worker. <br/>"+
             "You can still compile and run programs, but you will be unable to interact with them with your mouse or keyboard.<br/>"+
             err.toString()

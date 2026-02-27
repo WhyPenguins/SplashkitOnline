@@ -132,8 +132,14 @@ async function StartIDE() {
                     project = null;
                 }
 
-                if (!project)
+                if (!project) {
                     projectID = await appStorage.createProject(SKO.initializeProjectName, SKO.language);
+
+                    if (!projectID) {
+                        IDECriticalStorageFail = true;
+                        reportCriticalError("Failed to create project - out of storage space?","");
+                    }
+                }
                 else
                     projectID = project.id;
             }
@@ -152,12 +158,17 @@ async function StartIDE() {
                 if (projectID)
                     project = await appStorage.getProject(projectID);
 
-                if (!project)
+                if (!project) {
                     projectID = await appStorage.createProject(undefined, SKO.language);
+                    if (!projectID) {
+                        IDECriticalStorageFail = true;
+                        reportCriticalError("Failed to create project - out of storage space?","");
+                    }
+                }
             }
-
             // Load and initialize it!
-            await LoadProject(projectID, SKO.defaultInitializeProject ? null : function(){}, isCanceled);
+            if (!IDECriticalStorageFail)
+                await LoadProject(projectID, SKO.defaultInitializeProject ? null : function(){}, isCanceled);
         });
     }
 

@@ -85,7 +85,7 @@ class ExecutionEnvironmentInternal {
     }
 
     reportCriticalInitializationFail(message) {
-        parent.postMessage({type:"onCriticalInitializationFail", message:message},"*");
+        reportCriticalInitializationFail(message);
     }
 
     WriteToTerminal(message) {

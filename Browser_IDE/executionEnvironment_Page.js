@@ -260,6 +260,10 @@ function ReportError(block, message, line, stacktrace ,formatted=false){
     showTerminal(false);
 }
 
+function reportCriticalInitializationFail(message) {
+    parent.postMessage({type:"onCriticalInitializationFail", message:message},"*");
+}
+
 let headerHeight = parseFloat(getComputedStyle(document.getElementsByClassName("sk-header")[0]).height.slice(0,-2));
 
 

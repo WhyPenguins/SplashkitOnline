@@ -141,5 +141,5 @@ displayEditorNotification("Preparing for C++ Compilation! This may take some tim
 import('./cxxCompilerClangBackend.js').then(({ writeFile, compileObject, linkObjects, setPrintFunction }) => {
     registerCompiler("cxxCompiler", new CXXCompiler(writeFile, compileObject, linkObjects, setPrintFunction));
 }).catch((err)=>{
-    displayEditorNotification("Compiler had an internal error during initialization!</br>"+err.toString(), NotificationIcons.CRITICAL_ERROR, -1);
+    reportCriticalError("Compiler had an internal error during initialization!", err.toString(), err);
 });

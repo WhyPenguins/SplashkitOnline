@@ -76,6 +76,9 @@ class PromiseChannel {
     }
 
     async postMessage(eventType, message, signals){
+        if (!this.receiver) {
+            throw new Error("Cannot send message to non existent reciever; " + JSON.stringify({ eventType, message, signals}));
+        }
         let self = this;
         return new Promise((resolve, reject) => {
             let _message = structuredClone(message ?? {});
@@ -128,7 +131,7 @@ function registerTempCallback(callbackFn, signalFns){
 }
 
 function isWorker(oWindow){
-    return (oWindow instanceof Worker) || (oWindow instanceof ServiceWorker);
+    return (oWindow instanceof Worker) || (!(typeof ServiceWorker === 'undefined') && oWindow instanceof ServiceWorker);
 }
 
 function isInWorker(){

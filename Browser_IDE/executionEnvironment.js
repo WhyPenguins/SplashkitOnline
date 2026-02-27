@@ -71,7 +71,7 @@ class ExecutionEnvironment extends EventTarget{
                 EE.dispatchEvent(new Event("getFilesystemRequest"));
             }
             else if (data.type == "executionEnvironmentReloadRequest"){
-                EE.resetEnvironment();
+                EE.resetEnvironment(this.lastLanguage);
             }
             else if (data.type == "onDownloadFail"){
                 let ev = new Event("onDownloadFail");
@@ -148,8 +148,8 @@ class ExecutionEnvironment extends EventTarget{
                 }
             }
         });
-
-        await getPromiseFromEvent(this, "initialized");
+        new Promise((resolve, reject) => {this.signalDestroy = reject;});
+        await Promise.race([getPromiseFromEvent(this, "initialized"), this.signalDestroy]);
         this.readyForExecution = true;
     }
 
@@ -202,6 +202,7 @@ class ExecutionEnvironment extends EventTarget{
     }
 
     async updateCompilerLoadProgress(progress){
+        if (!this.iFrame) return;
         this.iFrame.contentWindow.postMessage({
             type: "UpdateCompilerLoadProgress",
             progress: progress,
@@ -209,6 +210,7 @@ class ExecutionEnvironment extends EventTarget{
     }
 
     updateRuntimeOptions(runtimeOptions){
+        if (!this.iFrame) return;
         this.iFrame.contentWindow.postMessage({
             type: "UpdateRuntimeOptions",
             runtimeOptions: runtimeOptions,
@@ -218,8 +220,24 @@ class ExecutionEnvironment extends EventTarget{
 
     // --- Environment Functions ---
 
+    destroy() {
+        if (this.signalDestroy)
+            this.signalDestroy("Destroyed Execution Environment");
+
+        this.readyForExecution = false;
+
+        if (this.iFrame && this.iFrame.parentNode)
+            this.iFrame.remove();
+
+        this.iFrame = null;
+        if (this.channel)
+            this.channel.setReceiver(null);
+    }
+
     // Completely destroys and recreates the environment.
     resetEnvironment(language){
+        if (this.signalDestroy)
+            this.signalDestroy("Reset Execution Environment");
         return new Promise((resolve,reject) => {
 
             this.readyForExecution = false;
@@ -259,24 +277,31 @@ class ExecutionEnvironment extends EventTarget{
 
     // --- File System Functions ---
     async mkdir(path){
+        if (!this.iFrame) return;
         await this.channel.postMessage("mkdir", {path});
     }
     async writeFile(path, data){
+        if (!this.iFrame) return;
         await this.channel.postMessage("writeFile", {path, data});
     }
     async rename(oldPath, newPath){
+        if (!this.iFrame) return;
         await this.channel.postMessage("rename", {
             oldPath: oldPath,
             newPath: newPath,
         });
     }
     async readFile(path){
+        if (!this.iFrame)
+            throw new Error("Failed to read " + path + " from runtime that hasn't been created.");
         return await this.channel.postMessage("readFile", {path});
     }
     async unlink(path){
+        if (!this.iFrame) return;
         await this.channel.postMessage("unlink", {path});
     }
     async rmdir(path, recursive = false){
+        if (!this.iFrame) return;
         await this.channel.postMessage("rmdir", {path, recursive});
     }
 
@@ -311,6 +336,7 @@ class ExecutionEnvironment extends EventTarget{
 
     _constructiFrame(container, language){
         this.readyForExecution = false;
+        this.lastLanguage = language;
         var iframe = document.createElement('iframe');
 
         iframe.id="iframetest"; // this code is primordial...
