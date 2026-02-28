@@ -342,7 +342,7 @@ const astHandlers = {
     "CXXDeleteExpr": (node, editor, context) => {
         const sourceSpan = editor.calculateSourceSpan(node);
         editor.insert(node.range.begin.offset, `__TRACE_DELETE(${sourceSpan},`);
-        editor.insert(node.range.begin.offset + node.range.begin.tokLen, `,`);
+        editor.insert(node.inner[0].range.begin.offset, `,`);
         if (node.inner) node.inner.forEach(i => context.traverse(i, editor, context));
         editor.insert(node.range.end.offset + node.range.end.tokLen, `)`);
     },
@@ -787,7 +787,7 @@ async function preprocessDebugSourceCode(name, source, promiseChannel){
         }
         // Default recursion for container nodes
         else {
-            const lookInside = ["DeclStmt", "ExprWithCleanups", "CXXMethodDecl", "CXXConstructorDecl", "ImplicitCastExpr", "DoStmt", "MaterializeTemporaryExpr", "CXXBindTemporaryExpr"];
+            const lookInside = ["DeclStmt", "ExprWithCleanups", "CXXMethodDecl", "CXXConstructorDecl", "ImplicitCastExpr", "DoStmt", "MaterializeTemporaryExpr", "CXXBindTemporaryExpr", "CXXTryStmt", "CXXCatchStmt"];
             if (lookInside.indexOf(node.kind) >= 0 && node.inner) {
                 node.inner.forEach(child => traverse(child, ed, ctx));
             }
