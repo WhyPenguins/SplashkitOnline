@@ -84,11 +84,68 @@ ActionQueue.OnClear([ExecutionEnvironmentLoadQueue, InitializeProjectQueue], asy
     ExecutionEnvironmentLoadQueue,
 ].forEach(queue => ActionQueue.OnClear([queue], updateCodeExecutionState));
 
+
+let startupTimeStart = performance.now();
+let startupTime = null;
+
+// Once the IDE is practically ready for execution, record the time and send it as analytics along with other metadata
+ActionQueue.OnClear([ExecutionEnvironmentLoadQueue, InitializeProjectQueue, ImportToProjectQueue, CompilerInitQueue], async function(){
+    if (startupTime != null)
+        return;
+
+    startupTime = performance.now() - startupTimeStart;
+
+    // spin this off so it doesn't block anything
+    (async function () {
+
+    if (analytics) {
+        let autoCreatedCount = null;
+        let manuallyCreatedCount = null;
+        if (!IDECriticalStorageFail){
+            try {
+                // return just a count of auto-created projects so we have an idea of how often people continue using embedded SKO or if they stop...
+                let projects = await appStorage.access(async (s) => {
+                    return await s.getAllProjects();
+                });
+
+                autoCreatedCount = 0;
+                manuallyCreatedCount = 0;
+                for (let project of projects) {
+                    if (project.name.indexOf(".") == 0)
+                        autoCreatedCount++;
+                    else
+                        manuallyCreatedCount++;
+                }
+            }
+            catch(err){
+                console.warn("Analytics failed: ", err);
+            }
+        }
+
+        analytics.sendEvent("startupMeta", {
+            startupTime,
+            autoCreatedCount,
+            hasManuallyCreated: manuallyCreatedCount == null ? null : (manuallyCreatedCount > 2)
+        })
+    }
+
+    })();
+});
+
 // TODO: refactor this so that it's clearer where each
 //       global variable is initialized/setup (should they be
 //       global in the first place? Probably not...)
 async function StartIDE() {
     IDECoreInitQueue.Schedule("IDECoreInit", async function IDECoreInitQueue (isCanceled){
+        // Analytics setup
+        try {
+            // analytics is defined globally in editorMain
+            analytics = new SimpleAnalytics(SKO.initializeProjectName);
+        }
+        catch(err){
+            console.error(err);
+        }
+
         // Interface setup
         createGutterSplitters();
         setupLanguageSelectionBox();
@@ -136,16 +193,26 @@ async function StartIDE() {
                     if (!project) {
                         projectID = await appStorage.createProject(SKO.initializeProjectName, SKO.language);
 
+                        if (analytics)
+                            analytics.initSession({type:"create"});
+
                         if (!projectID) {
                             throw new Error("!projectID from SKO.initializeProjectName");
                         }
                     }
-                    else
+                    else {
                         projectID = project.id;
+
+                        if (analytics)
+                            analytics.initSession({type:"load"});
+                    }
                 }
                 // if loading by ID
                 else if (SKO.projectID){
                     projectID = SKO.projectID;
+
+                    if (analytics)
+                        analytics.initSession({type:"load"});
                 }
                 // otherwise load last open project, or create if first run
                 else {
@@ -155,11 +222,19 @@ async function StartIDE() {
 
                     // check if it still exists
                     let project = null;
-                    if (projectID)
+                    if (projectID) {
                         project = await appStorage.getProject(projectID);
+
+                        if (analytics)
+                            analytics.initSession({type:"loadLast"});
+                    }
 
                     if (!project) {
                         projectID = await appStorage.createProject(undefined, SKO.language);
+
+                        if (analytics)
+                            analytics.initSession({type:"create"});
+
                         if (!projectID) {
                             throw new Error("!projectID from end");
                         }

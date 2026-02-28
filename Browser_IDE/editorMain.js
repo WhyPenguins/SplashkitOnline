@@ -1016,12 +1016,10 @@ async function runProgram(){
             return;
         }
 
-        let __cacheSourceTotal = "";
-
         async function mapBit(filename){
             let source = await fileAsString(await storedProject.access((project) => project.readFile(filename)));
             if (activeLanguage.name == "C++" && !audioNotificationRunOnce) audioNotification = audioFunctionNotification(source);
-            __cacheSourceTotal += source;
+
             return {
                 name: filename,
                 source: source
@@ -1040,11 +1038,20 @@ async function runProgram(){
         let sourceFilesSources = Promise.all(sourceFiles.map(mapBit));
         await Promise.all([compilableFilesSources, sourceFilesSources]);
 
+        let __cacheSourceTotal = (await sourceFilesSources).map((x)=>x.source).join("");
+
+        let compileStartTime = performance.now();
+        let compileTime = null;
+        if (analytics)
+            analytics.sendEvent("compile", { distOrig: levenshtein(initialActivitySourceTotal, __cacheSourceTotal) });
+
         let compiled = null;
         if (__cacheSourceTotal != __previousCacheSourceTotal || !__previousCompiledBinary) {
             compiled = await currentCompiler.compileAll(await compilableFilesSources, await sourceFilesSources, reportCompilationError, {isDebug: runtimeOptions.enableDebugging});
             __previousCacheSourceTotal = __cacheSourceTotal;
             __previousCompiledBinary = compiled;
+
+            compileTime = performance.now() - compileStartTime;
         }
         else {
             compiled = __previousCompiledBinary;
@@ -1053,9 +1060,13 @@ async function runProgram(){
         currentNotification.deleteNotification();
 
         if (compiled.output != null) {
+            if (analytics)
+                analytics.sendEvent("compiled", {compileTime});
             executionEnviroment.runProgram(compiled.output, runtimeOptions);
         } 
         else {
+            if (analytics)
+                analytics.sendEvent("compiled", {compileTime, success: false});
             displayEditorNotification("Project has errors! Please see terminal for details.",NotificationIcons.ERROR,3);
         }
     }
@@ -1065,6 +1076,11 @@ async function runProgram(){
 }
 
 async function continueProgram(){
+    if (analytics && !hasEngagedInControllingFlow) {
+        hasEngagedInControllingFlow = true;
+        analytics.sendEvent("control");
+    }
+
     clearErrorLines();
 
     try {
@@ -1076,6 +1092,11 @@ async function continueProgram(){
 }
 
 async function pauseProgram(){
+    if (analytics && !hasEngagedInControllingFlow) {
+        hasEngagedInControllingFlow = true;
+        analytics.sendEvent("control");
+    }
+
     try {
         await executionEnviroment.pauseProgram();
     }
@@ -1863,6 +1884,9 @@ function reportCriticalError(message, developerInfo, err) {
     details.appendChild(document.createTextNode(message));
     details.appendChild(document.createTextNode(developerInfo));
 
+    if (analytics)
+        analytics.sendEvent("criticalFail", {message}); // message is free of PI, developerInfo is too detailed
+
     if (executionEnviroment.iFrame)
         removeFadeOut(executionEnviroment.iFrame, 2000, ()=>{executionEnviroment.destroy();});
     else
@@ -1956,6 +1980,25 @@ function AddWindowListeners(){
                         }
                     });
                 }
+
+                if (analytics) {
+                    ImportToProjectQueue.Schedule("InitializeProjectFromOutsideWorld_RecordInitialState", async function (){
+                        // TODO: This is building off the hack in runProgram - it should be fixed up at the same time
+                        async function mapBit(filename){
+                            for (let i = 0; i < m.data.files.length; i ++) {
+                                if (m.data.files[i].path == filename)
+                                    return m.data.files[i].data;
+                            }
+                            return await fileAsString(await storedProject.access((project) => project.readFile(filename)));
+                        }
+
+                        let sourceFiles = await findAllSourceFiles();
+
+                        let sourceFilesSources = await Promise.all(sourceFiles.map(mapBit));
+
+                        initialActivitySourceTotal = sourceFilesSources.join("");
+                    });
+                }
                 break;
 
             case "EnterBlockEditMode":
@@ -2019,3 +2062,8 @@ function AddWindowListeners(){
         parent.postMessage({type:SplashKitOnlineMessageType, event:"ProjectLoaded", projectID: storedProject.projectID}, "*");
     })
 }
+
+// Analytics handling
+let analytics = null;
+let initialActivitySourceTotal = "";
+let hasEngagedInControllingFlow = false;
