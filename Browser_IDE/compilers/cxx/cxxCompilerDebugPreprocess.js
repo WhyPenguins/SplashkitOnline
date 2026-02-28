@@ -67,12 +67,15 @@ function analyzeArrayInitialization(varDecl, arrayLevels) {
     let currentNode = varDecl;
 
     for(let i = 0; i <= arrayLevels; i++) {
-        let inner = currentNode.inner ?? currentNode.array_filler;
-        if (!inner || inner.length == 0 || (inner.length == 1 && inner[0].kind == "ImplicitValueInitExpr")) {
-            return { isEmpty: true, targetNode: currentNode };
-        }
+        let inner = currentNode.inner ?? currentNode.array_filler.slice(1);
+
         for (let x of inner) {
-            if (x.kind == "ImplicitValueInitExpr") continue;
+            if (x.kind == "ImplicitValueInitExpr" || x.kind == "CXXConstructExpr") continue;
+            if (x.kind == "ExprWithCleanups") {
+                i--;
+                currentNode = x;
+                break;
+            }
             else if (x.kind == "InitListExpr") {
                 currentNode = x;
                 if (i == arrayLevels) isEmpty = false;
@@ -260,7 +263,9 @@ const astHandlers = {
 
         let braceWrap = (x, depth) => (depth < arrayLevels) ? `{${x}}` : x;
 
-        if (!node.init) {
+        let exception = node.init == "call" && arrayLevels > 0 && node.inner && node.inner[0].kind == "CXXConstructExpr";// TODO: need to reason about this more and integrate it properly
+
+        if (!node.init || exception) {
             let offset = node.range.end.offset + node.range.end.tokLen;
             editor.insert(offset, ` = ${braceWrap(`(${noinit}{})`, 0)}`);
         }

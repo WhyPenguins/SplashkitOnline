@@ -1197,6 +1197,7 @@ li.CodeMirror-hint-active {
   min-width: 2em;
   min-height: 2.5em;
 }
+
 .handexecution .variable .col-label{
   position: absolute;
   top: -1.2em;
@@ -1204,6 +1205,10 @@ li.CodeMirror-hint-active {
   left: 0;
   right: 0;
   text-align: center;
+}
+
+.handexecution .variable .col .variable{
+  margin: 0.2em 0;
 }
 
 /* 2D array improvements */
