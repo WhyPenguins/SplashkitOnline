@@ -55,6 +55,9 @@ class SimpleAnalytics {
 
     initSession(event_data = {}) {
         try {
+            event_data.embed = window.self !== window.top;
+            event_data.embedMode = SKO.useEmbeddedInterface;
+
             this.post("initialize_sko_session", {
                 session_id: this.sessionID,
                 activity_id: this.activityID,
