@@ -15,7 +15,7 @@
 // tools such as this :)
 
 // Just trying to decrease searchability, not intended to be secure - obscurity can still be better than nothing!
-const endpointBase = `https://${atob('c3BsYXNoa2l0LW9ubGluZS1hbmFseXRpY3Muc2Vhbi1ib2V0dGdlcg==')}.workers.dev/api`;
+const endpointBase = `https://${atob('c3BsYXNoa2l0LW9ubGluZS1hbmFseXRpY3Muc2ltcGxlZmVlZGJhY2s=')}.workers.dev/api`;
 let forceLogging = false; // disables endpoint logging filtering, should be false in production.
 
 class SimpleAnalytics {
