@@ -2056,7 +2056,7 @@ function AddWindowListeners(){
 
     const SplashKitOnlineMessageType = "SplashKitOnline";
 
-    parent.postMessage({type:SplashKitOnlineMessageType, event:"Listening"}, "*");
+    parent.postMessage({type:SplashKitOnlineMessageType, event:"Listening", sessionID: (analytics ? analytics.sessionID : null)}, "*");
 
     storedProject.addEventListener("attached", function () {
         parent.postMessage({type:SplashKitOnlineMessageType, event:"ProjectLoaded", projectID: storedProject.projectID}, "*");
