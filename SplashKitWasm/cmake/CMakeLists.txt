@@ -422,6 +422,7 @@ if (EMSCRIPTEN)
                 $<TARGET_FILE:SplashKitBackendCXX>
                 "${SK_SRC}/coresdk/"
                 "${SK_WASMEXT}/prebuilt/cxx/compiler/sysroot.zip"
+                "${SK_WASMEXT}/src/cxxbackend/splashkit-arrays.h"
                 "${SK_OUT}/cxx/compiler/wasi-sysroot.zip"
                 ${ZIP_COMPRESSION_FLAG}
             )

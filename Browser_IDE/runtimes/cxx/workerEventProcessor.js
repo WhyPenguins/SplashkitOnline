@@ -402,13 +402,26 @@ function __output_debugger_message__(line, strPtr){
     __sko_debugger_message(line, JSON.parse(text));
 }
 
-function __sko_debugger_message(line, data){
-    postCustomMessage({
-        type: "DebuggerMessage",
-        data: data,
-    });
+const BREAK_YES = 1;
+const BREAK_NO = 0;
+const BREAK_NO_BUFFER = -1;
+let debugger_buffer = [];
 
-    if (!runtimeOptions || (runtimeOptions.enableSingleStepping && data.break)) {
+function __sko_debugger_message(line, data){
+    if (data.break != BREAK_NO_BUFFER){
+        debugger_buffer.push(data);
+
+        postCustomMessage({
+            type: "DebuggerMessage",
+            data: debugger_buffer,
+        });
+        debugger_buffer = [];
+    }
+    else{
+        debugger_buffer.push(data);
+    }
+
+    if (!runtimeOptions || (runtimeOptions.enableSingleStepping && data.break == BREAK_YES)) {
         syncStdOut();
         postCustomMessage({
             type: "ProgramPaused"
@@ -420,7 +433,7 @@ function __sko_debugger_message(line, data){
             !runtimeOptions.enableSingleStepping &&
             runtimeOptions.forceStepLineHighlighting &&
             (runtimeOptions.forceStepLineHighlightingInner || data.event != "EXPRINNER") &&
-            data.break
+            data.break == BREAK_YES
         ) {
             sleep(runtimeOptions.stepLineHighlightingDelay);
             __sko_process_events();

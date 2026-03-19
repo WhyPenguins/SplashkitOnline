@@ -1,39 +1,5 @@
 "use strict";
 
-
-// TODO: Update splashkit-core submodule and
-// remove this hack
-let splashKitWrapSource = `
-#pragma once
-#include "splashkit.h"
-inline int to_integer(const string &text)
-{
-    return std::stoi(text);
-}
-
-inline double to_double(const string &text)
-{
-    return std::stod(text);
-}
-
-inline string to_string(int value)
-{
-    return std::to_string(value);
-}
-
-inline string to_string(double value)
-{
-    return std::to_string(value);
-}
-
-inline string to_string(double value, int precision)
-{
-    // getting errors using sstream so using this instead...
-    std::string num_text = std::to_string(value);
-    return num_text.substr(0, num_text.find(".")+precision+1);
-}
-`;
-
 // the C++ compiler subclass
 class CXXCompiler extends Compiler{
     constructor(writeFile, compileObject, linkObjects, setPrintFunction){
@@ -55,16 +21,6 @@ class CXXCompiler extends Compiler{
         let compiledObjects = [];
 
         let hasErrors = false;
-
-        // TODO: Remove
-        for (let x of sourceList) {
-            x.source = x.source.replaceAll("splashkit.h", "splashkit_wrap.h");
-        }
-
-        sourceList.push({
-            source: splashKitWrapSource,
-            name: "/code/splashkit_wrap.h"
-        })
 
         // first write all source files (so includes can work)
         for(let i = 0; i < sourceList.length; i ++) {
@@ -117,7 +73,7 @@ class CXXCompiler extends Compiler{
 
         this.checkUsageOfIncompleteAPI(source);
 
-        let object = await this.compileObject(name, source.replaceAll("splashkit.h", "splashkit_wrap.h"), {isDebug});
+        let object = await this.compileObject(name, source, {isDebug});
 
         return {
             output: object
@@ -129,7 +85,7 @@ class CXXCompiler extends Compiler{
 
         // this should be changed so we actually just get clang to syntax check, should be possible.
         // TODO: It is (see the debugger code), just need to get around to doing it...
-        let object = await this.compileObject(name, source.replaceAll("splashkit.h", "splashkit_wrap.h"));
+        let object = await this.compileObject(name, source);
 
         return object.output != null;
     }

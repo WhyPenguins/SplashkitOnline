@@ -1137,7 +1137,7 @@ li.CodeMirror-hint-active {
 .handexecution .memory, .handexecution .terminal-section{
   display:flex;
   min-height: 3em;
-  display: block;
+  display: inline-block;
   position: relative;
 }
 .handexecution .variable{
@@ -1190,21 +1190,45 @@ li.CodeMirror-hint-active {
   flex: 1;
   border-left: 2px black solid;
   border-bottom-left-radius: 20px 355px;
-  padding-left: 0.5em;
   padding-top: 0.3em;
   line-height: 1em;
   position: relative;
   min-width: 2em;
   min-height: 2.5em;
+  display: flex;
+  flex-direction: column;
+}
+.handexecution .variable .col span {
+  padding: 0px 0.5em;
+  text-align: center;
+  display: block;
+  line-height: 0.7em;
+}
+.handexecution .variable .col .col-label {
+  padding: 0px 0.0em;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap-reverse;
+  justify-content: center;
+}
+.handexecution .variable .col .col-label span {
+  padding: 0px 0.0em;
+  text-align: center;
+  display: inline;
+}
+.handexecution .variable .col div {
+  padding-left: 0.5em;
+  padding-right: 0.5em;
 }
 
 .handexecution .variable .col-label{
   position: absolute;
-  top: -1.2em;
   font-size: 0.7em;
   left: 0;
   right: 0;
   text-align: center;
+  bottom: 100%;
+  margin-bottom: 0.1em;
 }
 
 .handexecution .variable .col .variable{
@@ -1227,14 +1251,26 @@ li.CodeMirror-hint-active {
     display: none;
 }
 .handexecution .variable .col .col .col-label {
-    top: initial;
-    left: -4.1em;
+    right: 100%;
+    left: initial;
+    bottom: initial;
+    margin-right: 0.2em;
+    margin-bottom: 0;
+    line-height: initial;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    top: 0;
 }
 .handexecution .variable .col .col {
     border-bottom: 2px black solid;
     border-left: 0;
     border-bottom-left-radius: 0;
     min-height: 2.5em;
+}
+.handexecution .variable .col .col:last-child {
+    border-bottom: none;
 }
 
 .handexecution .null {

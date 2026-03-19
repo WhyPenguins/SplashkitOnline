@@ -188,7 +188,7 @@ class PointerLine {
  * Represents a variable or allocation.
  */
 class MemoryEntry {
-    constructor({ nameElem, names, contentElem, valuesElem, variableElem, columns, fullName }) {
+    constructor({ nameElem, names, contentElem, valuesElem, variableElem, columns, fullName, elemCount = null }) {
         this.nameElem = nameElem;
         this.names = names;
         this.contentElem = contentElem;
@@ -197,6 +197,7 @@ class MemoryEntry {
         this.columns = columns;
         this.fullName = fullName;
         this.pointerLine = null;
+        this.elemCount = elemCount;
     }
 }
 
@@ -250,7 +251,20 @@ class HandExecutionDrawing {
         // Central registry for pointer lines to update coordinates on reflow/resize
         this.activePointerLines = [];
 
+        // Used to temporarily hide elements during batch operations
+        this.hiddenElems = [];
+
         this.initialize();
+    }
+
+    showHidden(){
+        for(let i = 0; i < this.hiddenElems.length; i ++)
+        {
+            this.hiddenElems[i].style.display = "";
+        }
+        this.hiddenElems = [];
+
+        this.updateSize();
     }
 
     updateSize() {
@@ -342,11 +356,12 @@ class HandExecutionDrawing {
         this.terminalOutput.innerHTML += escape(text).replaceAll("\n", "<br/>");
     }
 
-    allocateVariable(structure, initValues = [], updateMemory = true) {
+    buildStructure(parentElem, struct, isElement, initValues = [], updateMemory, {hide = false} = {})
+    {
         let pieces = [];
         let principleAllocation = null;
 
-        const buildStructure = (parentElem, struct, isElement) => {
+        const _buildStructure = (parentElem, struct, isElement) => {
             let isPrimitive = !(struct.fields && struct.fields.length > 0);
             let id = getMemoryId(struct.type, struct.address);
 
@@ -357,11 +372,10 @@ class HandExecutionDrawing {
             // as perhaps a reference has been made instead
             let existing = this.typedMemoryMap.get(id);
             if (existing) {
-                // Add alias if name is new
-                if (existing.names && existing.names.indexOf(struct.name) == -1) {
-                    existing.names.push(struct.name);
-                    existing.nameElem.innerText += ` (${struct.name})`;
-                }
+                // Add alias
+                let nameSpan = $span("fade-on-create", [` (${struct.name})`]);
+                existing.names.push(nameSpan);
+                existing.nameElem.appendChild(nameSpan);
                 return;
             }
 
@@ -374,48 +388,125 @@ class HandExecutionDrawing {
             let fullName = "";
 
             if (!isElement) {
-                let nameElem = $div("title fade-on-create", struct.name);
-                let names = [struct.name];
+                let nameSpan = $span("fade-on-create", [struct.name]);
+                let nameElem = $div("title fade-on-create", [nameSpan]);
+                let names = [nameSpan];
                 if (isPrimitive)
                     valuesElem = $div("values fade-on-create", []);
 
                 contentElem = $div("content fade-on-create" + (struct.is_array ? " array" : ""), valuesElem ? [valuesElem] : []);
                 variableElem = $div("variable fade-on-create", [nameElem, contentElem]);
 
-                fullName = parentElem.fullName + (parentElem.fullName != "" ? "." : "") + struct.name;
+                fullName = (parentElem.fullName??"") + ((parentElem.fullName??"") != "" ? "." : "") + struct.name;
                 contentElem.fullName = fullName;
 
+                variableElem.title = fullName;
+
                 this.typedMemoryMap.set(id, new MemoryEntry({
-                    nameElem, names, contentElem, valuesElem, variableElem, fullName
+                    nameElem, names, contentElem, valuesElem, variableElem, fullName, elemCount:(struct.fields??[]).length
                 }));
             } else {
                 // Array element logic
                 variableElem = valuesElem = $div("col fade-on-create", []);
-                valuesElem.appendChild($span("fade-on-create col-label", [struct.name]));
+
+                let nameSpan = $span("fade-on-create", [struct.name]);
+                let names = [nameSpan];
+                let nameElem = $span("fade-on-create col-label", [nameSpan]);
+                valuesElem.appendChild(nameElem);
 
                 if (isPrimitive && initValues.map(x => x.address).indexOf(struct.address) == -1) {
                     if (updateMemory)
                         valuesElem.appendChild($span("fade-on-create", ["?"]));
                 }
 
-                fullName = `${parentElem.fullName}[${struct.name}]`;
+                fullName = `${parentElem.fullName??""}[${struct.name}]`;
                 valuesElem.fullName = fullName;
                 contentElem = valuesElem;
 
+                variableElem.title = fullName;
+
                 this.typedMemoryMap.set(id, new MemoryEntry({
-                    valuesElem, contentElem, columns: true, fullName
+                    nameElem, names, valuesElem, contentElem, columns: true, fullName, elemCount:(struct.fields??[]).length
                 }));
             }
 
             // Recursion for fields
             if (struct.fields) {
                 for (let field of struct.fields) {
-                    buildStructure(contentElem, field, struct.is_array);
+                    _buildStructure(contentElem, field, struct.is_array);
                 }
             }
 
             parentElem.appendChild(variableElem);
+            if (hide) {
+                variableElem.style.display = "none";
+                this.hiddenElems.push(variableElem);
+            }
         };
+
+        _buildStructure(parentElem, struct, isElement);
+
+        return {pieces, principleAllocation};
+    }
+
+    remapMemory(address, new_structure) {
+        let allocation = this.allocationsMap.get(address);
+        this.allocationsMap.delete(address);
+        this.allocationsMap.set(new_structure.address, allocation);
+        if (new_structure.is_array) {
+            let existing = this.typedMemoryMap.get(allocation.principleAllocation);
+            let new_id = getMemoryId(new_structure.type, new_structure.address);
+
+            allocation.principleAllocation = new_id;
+            this.typedMemoryMap.set(new_id, existing)
+
+            let current_count = existing.elemCount;
+
+            let overlap = Math.min(new_structure.fields.length, current_count);
+
+            let pieces = [];
+            let recurse = (struct) => {
+                // Remap from the original address to the new one
+                let originalAddress = struct.address - new_structure.address + address;
+                let id = getMemoryId(struct.type, originalAddress);
+                let new_id = getMemoryId(struct.type, struct.address);
+                let existing = this.typedMemoryMap.get(id);
+                this.typedMemoryMap.delete(id);
+                this.typedMemoryMap.set(new_id, existing);
+                // Recursion for fields
+                if (struct.fields) {
+                    for (let field of struct.fields) {
+                        recurse(field);
+                    }
+                }
+            }
+
+            // handle existing elements
+            for(let i = 0; i < overlap; i ++) {
+                recurse(new_structure.fields[i]);
+            }
+
+            // add extra elements
+            for(let i = overlap; i < new_structure.fields.length; i ++) {
+                this.buildStructure(existing.contentElem, new_structure.fields[i], true, [], false);
+            }
+
+            // remove extra elements
+            for(let i = overlap; i < current_count; i ++) {
+                this._handleRemoval(existing.contentElem.childNodes[i], this.valueMode);
+            }
+
+            existing.elemCount = new_structure.fields.length;
+        }
+        else {
+            // TODO: currently unused, trying to save time :)
+        }
+        this.updateSize();
+    }
+
+    allocateVariable(structure, initValues = [], updateMemory = true, {hide = false} = {}) {
+        let pieces = [];
+        let principleAllocation = null;
 
         this.stackContainer.fullName = "";
 
@@ -423,11 +514,11 @@ class HandExecutionDrawing {
         let isHeap = structure.name == "HEAP" || structure.location == "heap"; // TODO: structure.name == "HEAP" is a hack...
         if (isHeap) {
             structure.name = "";
-            buildStructure(this.heapContainer, structure, false);
+            ({pieces, principleAllocation} = this.buildStructure(this.heapContainer, structure, false, initValues, updateMemory, {hide}));
             // so is this :)
             this.heapContainer.style.opacity = "1";
         } else {
-            buildStructure(this.stackContainer, structure, false);
+            ({pieces, principleAllocation} = this.buildStructure(this.stackContainer, structure, false, initValues, updateMemory, {hide}));
         }
 
         this.allocationsMap.set(principleAllocation[0], {
@@ -452,6 +543,15 @@ class HandExecutionDrawing {
         // Handle main variable visualization
         let mainEntry = this.typedMemoryMap.get(allocation.principleAllocation);
         if (mainEntry) {
+            // Does it still have references? These will be popped off in reverse-order,
+            // before the actual object is removed. Aside from strange cases...
+            if (mainEntry.names.length > 1)
+            {
+                this._handleRemoval(mainEntry.names[mainEntry.names.length-1], this.stackMode);
+                mainEntry.names.pop();
+                return;
+            }
+
             this._handleRemoval(mainEntry.variableElem, mode);
 
             if (mainEntry.pointerLine) {
@@ -499,8 +599,8 @@ class HandExecutionDrawing {
             }
 
             // Insert spacing
-            if (valuesElem.childNodes.length > (variable.columns ? 1 : 0))
-                valuesElem.insertAdjacentHTML('beforeend', variable.columns ? "<br/>" : " ");
+            if (this.valueMode == "append" && valuesElem.childNodes.length > (variable.columns ? 1 : 0))
+                valuesElem.insertAdjacentHTML('beforeend', variable.columns ? "" : " ");
 
             // Create new value (Pointer or Primitive)
             if (newVal.type[newVal.type.length - 1] == '*' && newVal.type != "char*") {
@@ -546,6 +646,15 @@ class HandExecutionDrawing {
      * Logic for removing/fading elements based on mode.
      */
     _handleRemoval(element, mode) {
+        function isElementVisible(el) {
+            return !!el.offsetParent;
+        }
+        if (!isElementVisible(element))
+        {
+            element.remove();
+            return;
+        }
+
         if (mode == "append") {
             element.classList.add("strikethrough");
         } else {

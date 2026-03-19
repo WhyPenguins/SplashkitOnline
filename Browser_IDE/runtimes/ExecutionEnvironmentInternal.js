@@ -171,24 +171,37 @@ class ExecutionEnvironmentInternal {
         showTerminal(true);
     }
 
-    DebuggerMessage(data){
-        if (this.runtimeOptions.enableSingleStepping || this.runtimeOptions.forceStepLineHighlighting)
+    DebuggerMessage(datas){
+        if (datas.length == 0) return;
+
+        if (this.runtimeOptions.enableSingleStepping || this.runtimeOptions.forceStepLineHighlighting){
+            let data = datas[datas.length-1];
             executionEnvironment.channel.postMessage("highlightCurrentLine", {filename: data.file, line: data.line, charStart: data.charStart, charEnd: data.charEnd});
+        }
 
         if (!handExecutionDrawing)
             return;
 
-        let loc = [data.line, data.charStart, data.charEnd];
+        for (let i = 0; i < datas.length; i ++) {
+            let data = datas[i];
 
-        if (data.event == "DECL"){
-            let updateMemory = data.val.length == 0 || data.val[0] != "PreventUpdate";
-            handExecutionDrawing.allocateVariable(data.structure, updateMemory?data.val:[], updateMemory);
+            let loc = [data.line, data.charStart, data.charEnd];
+
+            if (data.event == "DECL"){
+                let updateMemory = data.val.length == 0 || data.val[0] != "PreventUpdate";
+                handExecutionDrawing.allocateVariable(data.structure, updateMemory?data.val:[], updateMemory, {hide: true});
+            }
+            if (data.event == "ASSIGN"){
+                handExecutionDrawing.updateValues(data.val);
+            }
+            if (data.event == "DESTRUCT"){
+                handExecutionDrawing.freeMemory(data.val);
+            }
+            if (data.event == "REMAP"){
+                handExecutionDrawing.remapMemory(data.val[0], data.structure);
+            }
         }
-        if (data.event == "ASSIGN"){
-            handExecutionDrawing.updateValues(data.val);
-        }
-        if (data.event == "DESTRUCT"){
-            handExecutionDrawing.freeMemory(data.val);
-        }
+
+        handExecutionDrawing.showHidden();
     }
 }

@@ -2,6 +2,7 @@
 
 // Cache of the debug macros file
 let debugMacros = null;
+let debugArrayMacros = null;
 
 // --- Utility Functions (Pure Logic) ---
 
@@ -59,6 +60,13 @@ function countOuterArrayLayers(type) {
         else if (c === ')') return count;
     }
     return count;
+}
+
+// Hacky regex to check if a type is a reference, hopefully good enough...
+function typeIsReference(type) {
+    type = type.trim();
+    type = type.slice(extractBaseType(type));
+    return /&\s*\w*\s*(\)|$)/.test(type);
 }
 
 // Checks if an array initialization is empty and finds the relevant node for injection
@@ -171,7 +179,7 @@ class SourceEditor {
     }
 
     // Calculates the SourceSpan using byte offsets.
-    calculateSourceSpan(node) {
+    calculateSourceSpan(node, returnInfo=false) {
         if (!node.range) return "(SourceSpan{&__debug_current_filename,0,0,0,0})";
         if (node.range.begin.includedFrom) return null;
 
@@ -214,7 +222,17 @@ class SourceEditor {
         let startOfLastLine = lastNewline(offsetEnd);
         let colEnd = offsetEnd - startOfLastLine - 1;
 
-        return `(SourceSpan{&__debug_current_filename,${lineStart - this.lineOffset},${lineEnd - this.lineOffset},${colStart},${colEnd}})`;
+        let text = `(SourceSpan{&__debug_current_filename,${lineStart - this.lineOffset},${lineEnd - this.lineOffset},${colStart},${colEnd}})`;
+
+        if (returnInfo)
+        {
+            return {
+                text,
+                realLineStart: lineStart - this.lineOffset
+            }
+        }
+
+        return text;
     }
 
     // Helper to find a byte sequence (needle) in a Uint8Array (haystack) starting at offset
@@ -246,20 +264,30 @@ const astHandlers = {
             return;
 
         const { traverse } = context;
-        const sourceSpan = editor.calculateSourceSpan(node);
+        const sourceSpanName = editor.calculateSourceSpan({ range: { begin: node.range.begin, end: {offset: node.loc.offset, tokLen: node.loc.tokLen }} });
+
+        //const sourceSpanInit = editor.calculateSourceSpan({ range: { begin: {offset: node.loc.offset + node.loc.tokLen }, end: node.range.end } });
+        const sourceSpanInit = editor.calculateSourceSpan(node);
 
         let arrayLevels = countOuterArrayLayers(node.type.qualType);
         let type = node.name + "[0]".repeat(arrayLevels);
 
-        let noinit = `__TRACE_STACK_DECL_NO_INIT(${sourceSpan}, ${node.name}), (typename std::remove_reference<decltype(${type})>::type)`;
-        let init   = `__TRACE_STACK_DECL_INIT(${sourceSpan}, ${node.name}), (typename std::remove_reference<decltype(${type})>::type)`;
-        let aftercons = `, *${node.name}_____debug_cons = __TRACE_POST_CONSTRUCTION(${sourceSpan}, ${node.name})`;
+        let noinit = `__TRACE_STACK_DECL_NO_INIT(${sourceSpanName}, ${node.name}), (typename std::remove_reference<decltype(${type})>::type)`;
+        let init   = `__TRACE_STACK_DECL_INIT(${sourceSpanName}, ${node.name}), (typename std::remove_reference<decltype(${type})>::type)`;
+
+        let aftercons = `, *${node.name}_____debug_cons = __TRACE_POST_CONSTRUCTION(${sourceSpanInit}, ${node.name})`;
 
         if (node.type.qualType == "const int") {
             noinit = "";
             init = "";
-            aftercons = `, *${node.name}_____debug_cons = (__TRACE_STACK_DECL_INIT(${sourceSpan}, ${node.name}), __TRACE_POST_CONSTRUCTION(${sourceSpan}, ${node.name}))`;
+            aftercons = `, *${node.name}_____debug_cons = (__TRACE_STACK_DECL_INIT(${sourceSpanName}, ${node.name}), __TRACE_POST_CONSTRUCTION(${sourceSpanInit}, ${node.name}))`;
         }
+        if (typeIsReference(node.type.qualType)) {
+            noinit = "";
+            init = "";
+            aftercons = `, *${node.name}_____debug_cons = (__TRACE_STACK_DECL_INIT(${sourceSpanName}, ${node.name}), nullptr)`;
+        }
+
 
         let braceWrap = (x, depth) => (depth < arrayLevels) ? `{${x}}` : x;
 
@@ -463,11 +491,20 @@ const astHandlers = {
         let isMain = context.isMain??false;
         context.isMain = false;
 
-        let start = editor.calculateSourceSpan({ range: { begin: node.range.begin, end: node.range.begin } });
+        let start = editor.calculateSourceSpan({ range: { begin: node.range.begin, end: node.range.begin } }, true);
         let end = editor.calculateSourceSpan({ range: { begin: node.range.end, end: node.range.end } });
 
-        if (!dontTrackScope) {
-            editor.insert(node.range.begin.offset + node.range.begin.tokLen, `__handle_debug_forced_break(); __break(${start});\n`);
+        if (!dontTrackScope && start.realLineStart >= 0) {
+            editor.insert(node.range.begin.offset + node.range.begin.tokLen, `__handle_debug_forced_break();`);
+
+            if (context.parameterScopeTrackers)
+            {
+                editor.insert(node.range.begin.offset + node.range.begin.tokLen, context.parameterScopeTrackers);
+                context.parameterScopeTrackers = "";
+            }
+
+            editor.insert(node.range.begin.offset + node.range.begin.tokLen, `__break(${start.text});\n`);
+
             editor.insert(node.range.end.offset, `__break(${end});\n`);
         }
 
@@ -544,10 +581,35 @@ const astHandlers = {
     },
 
     "FunctionDecl" : (node, editor, context) => {
+
         if (node.inner) {
             if (node.name && node.name == "main")
                 context.isMain = true;
+
+            let paramTrackers = "";
+            node.inner.forEach(v => {
+                if (v.kind == "ParmVarDecl")
+                {
+                    const span = editor.calculateSourceSpan(v);
+                    paramTrackers += `__SCOPED_VARIABLE_TRACKER(${v.name}, ${context.isMain?"true":"false"});`
+
+
+                    if (typeIsReference(v.type.qualType)) {
+                        paramTrackers += `__TRACE_STACK_DECL_INIT(${span}, ${v.name});`;
+                    }
+                    else
+                    {
+                        paramTrackers += `__TRACE_STACK_DECL_INIT_NOBREAK(${span}, ${v.name});`;
+                        paramTrackers += `__TRACE_POST_CONSTRUCTION(${span}, ${v.name});`;
+                    }
+                }
+            });
+
+            context.parameterScopeTrackers = paramTrackers
+
             node.inner.forEach(child => context.traverse(child, editor, context));
+
+            context.parameterScopeTrackers = "";
         }
         context.isMain = false;
     },
@@ -555,7 +617,7 @@ const astHandlers = {
 
 // Helper for CXXRecordDecl (called by CXXRecordDecl and ClassTemplateDecl)
 function handleRecordDecl(node, templateParams, editor, context) {
-    const { traverse, predefs, declaredRecords } = context;
+    const { traverse, predefs, declaredRecords, definedRecords } = context;
 
     let templateDefinition = "template<";
     let templateUsage = "<";
@@ -594,11 +656,13 @@ function handleRecordDecl(node, templateParams, editor, context) {
     let typenameCode = "";
     let memoryStructureCode = "";
 
-    if (!declaredRecords.has(node.name)) {
+    let completeTypename = `${node.name}${templateUsage}`;
+
+    if (!declaredRecords.has(completeTypename)) {
         typenameCode = `${templateDefinition}
             REGISTER_TYPE_NAME(${node.name}${templateUsage})
         `;
-        declaredRecords.set(node.name, {});
+        declaredRecords.set(completeTypename, {});
     }
 
     let specialization = "";
@@ -607,7 +671,7 @@ function handleRecordDecl(node, templateParams, editor, context) {
         specialization = `<${node.name}>`;
     }
 
-    if (node.inner) {
+    if (node.inner && !definedRecords.has(completeTypename)) {
         memoryStructureCode = `
             ${templateDefinition} inline std::string emit_memory_record${specialization}(const ${node.name}${templateUsage}& t){
                 std::stringstream ss;
@@ -620,6 +684,7 @@ function handleRecordDecl(node, templateParams, editor, context) {
                 );
             }
         `;
+        definedRecords.set(completeTypename, {});
     }
 
     let sourceSpan = editor.calculateSourceSpan(node);
@@ -699,6 +764,8 @@ async function preprocessDebugSourceCode(name, source, promiseChannel){
     // Start the debug macro file downloading if it hasn't already
     if (!debugMacros)
         debugMacros = fetch("compilers/cxx/SplashKitOnlineDebugMacros.h").then((x)=>x.text());
+    if (!debugArrayMacros)
+        debugArrayMacros = fetch("compilers/cxx/SplashKitOnline-splashkit-arrays.h").then((x)=>x.text());
 
     await promiseChannel.postMessage("setupUserCode", {
         codeFiles : [{ name: name, source: source }]
@@ -726,10 +793,15 @@ async function preprocessDebugSourceCode(name, source, promiseChannel){
     #include "splashkit.h"
     #undef types_hpp
     #undef splashkit_lib
-    #include <splashkit.h>
+    #include "splashkit.h"
     `;
 
-    namespacedSource = namespaceIncludes+namespacedSource;
+    // TODO: More general header include handling...
+    const pastedIncludes = `
+    ${namespacedSource.includes("splashkit-arrays.h") ? await debugArrayMacros : ""}
+    `
+
+    namespacedSource = namespaceIncludes+pastedIncludes+namespacedSource;
 
     // 3. Fetch AST
     await promiseChannel.postMessage("setupUserCode", {
@@ -747,11 +819,11 @@ async function preprocessDebugSourceCode(name, source, promiseChannel){
     let ASTs = parseASTFromOutput(astOut.stdout);
 
     // 4. Macro Injection
-    let editor = new SourceEditor(namespacedSource, count(namespaceIncludes, "\n"));
+    let editor = new SourceEditor(namespacedSource, count(namespaceIncludes+pastedIncludes, "\n"));
 
     // Context passed to all handlers
     const context = {
-        namespaceIncludesLength: namespaceIncludes.length,
+        namespaceIncludesLength: namespaceIncludes.length + pastedIncludes.length,
         predefs: { value: `
             #define REGISTER_TYPE_NAME(...) inline std::string get_type_name_specific(const __VA_ARGS__& x){return #__VA_ARGS__;};
 
@@ -759,6 +831,7 @@ async function preprocessDebugSourceCode(name, source, promiseChannel){
             `
         },
         declaredRecords: new Map(),
+        definedRecords: new Map(),
         traverse: null, // Assigned below to allow recursion
         isInnerExpression: false,
         markInner: function(){
@@ -774,6 +847,13 @@ async function preprocessDebugSourceCode(name, source, promiseChannel){
             };
         }
     };
+
+    // Manually handled records
+    // TODO: Why do these need a \n at the end...?
+    context.declaredRecords.set("fixed_array<T,MAX_SIZE>\n", {});
+    context.declaredRecords.set("dynamic_array<T>\n", {});
+    context.definedRecords.set("fixed_array<T,MAX_SIZE>\n", {});
+    context.definedRecords.set("dynamic_array<T>\n", {});
 
     // The recursive traversal function
     const traverse = (node, ed, ctx) => {
@@ -800,7 +880,7 @@ async function preprocessDebugSourceCode(name, source, promiseChannel){
 
     // 5. Finalize Source
     let processedSource = `
-    #include <splashkit.h>
+    #include "splashkit.h"
     ${context.predefs.value}
     #include "SplashKitOnlineDebugMacros.h"
     `+editor.getResult();

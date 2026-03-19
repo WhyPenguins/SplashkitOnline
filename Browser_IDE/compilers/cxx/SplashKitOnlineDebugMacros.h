@@ -58,11 +58,15 @@ std::string to_json_value(const T& t) {
 
 // Special handling for strings to make them look nice in the visualizer.
 inline std::string to_json_value(const std::string& t) {
-    return "\"'" + t + "'\"";
+    return "\"\\\"" + t + "\\\"\"";
 }
 
 inline std::string to_json_value(const char* t) {
-    return "\"'" + std::string(t) + "'\"";
+    return "\"\\\"" + std::string(t) + "\\\"\"";
+}
+
+inline std::string to_json_value(char t) {
+    return "\"'" + std::string(1, t) + "'\"";
 }
 
 // Helper to clean up JSON lists (removes trailing comma).
@@ -95,7 +99,8 @@ REGISTER_TYPE_NAME(unsigned char)
 REGISTER_TYPE_NAME(signed char)
 REGISTER_TYPE_NAME(string)
 
-
+template<typename T, std::size_t N>
+REGISTER_TYPE_NAME(std::array<T, N>)
 ///////////
 // Thanks GLM 5!
 // 1. The detection helper (The "Detector" idiom)
@@ -180,6 +185,11 @@ std::string emit_memory_record(const T(&t)[size]) {
     return emit_memory_dynarray(&t[0], size);
 }
 
+template<typename T, std::size_t size>
+std::string emit_memory_record(const std::array<T, size> &t) {
+    return emit_memory_dynarray(&t[0], size);
+}
+
 // Outputs declaration's structured view (name, type, address, fields).
 template<typename T>
 inline std::string emit_structure_wrap(std::string name, const T& t, std::string fields) {
@@ -231,6 +241,11 @@ inline std::string emit_structure_record(std::string name, const T(&t)[size]) {
     return emit_structure_dynarray(name, &t[0], size);
 }
 
+template<typename T, std::size_t size>
+inline std::string emit_structure_record(std::string name, const std::array<T, size> &t) {
+    return emit_structure_dynarray(name, &t[0], size);
+}
+
 // ==========================================
 // Section 7: Core Debugging Infrastructure
 // ==========================================
@@ -257,13 +272,24 @@ ScopeGuard<F> make_scope_guard(F&& f) {
     return ScopeGuard<F>(std::forward<F>(f));
 }
 
+#define NO_BREAK auto ___no_break__ = (___skip_counter___++, make_scope_guard([](){___skip_counter___--;}));
+
+const int BREAK_YES = 1;
+const int BREAK_NO = 0;
+const int BREAK_NO_BUFFER = -1;
+int ___skip_counter___ = 0;
+
 // Constructs the JSON message payload for the visualizer.
 inline std::string build_debug_event(SourceSpan loc, std::string event, std::string structure, std::string value, bool break_execution = true) {
+    int break_value = break_execution ? BREAK_YES : BREAK_NO;
+    if (___skip_counter___ > 0)
+        break_value = BREAK_NO_BUFFER;
+
     return "{\"event\":\"" + event + "\",\"file\":\"" + (*loc.file) + "\",\"line\":" + to_json_value(loc.start) +
         ",\"charStart\":" + to_json_value(loc.charStart) + ",\"charEnd\":" + to_json_value(loc.charEnd) +
         ",\"structure\":" + trim_json_list(structure) +
         ", \"val\":[" + trim_json_list(value) + "]" +
-        ", \"break\": " + to_json_value(break_execution) + "}";
+        ", \"break\": " + to_json_value(break_value) + "}";
 }
 
 // Some types get initialized such that if a single member
@@ -340,10 +366,10 @@ struct ScopedVariableTracker {
     void* alloc;
 
     template<typename T>
-    void allocateAndConstruct(SourceSpan loc, std::string name, const T& x, bool isInitialized) {
+    void allocateAndConstruct(SourceSpan loc, std::string name, const T& x, bool isInitialized, bool _break) {
         bool outputMemory = false;
         alloc = (void*)&x;
-        send_debug_message(loc.start, build_debug_event(loc, "DECL", emit_structure_record(name, x), (isInitialized && is_one_for_all_type<T>()) ? "\"PreventUpdate\"" : ""));
+        send_debug_message(loc.start, build_debug_event(loc, "DECL", emit_structure_record(name, x), (isInitialized && is_one_for_all_type<T>()) ? "\"PreventUpdate\"" : "", _break));
     }
 
     template<typename T>
@@ -438,6 +464,20 @@ void trace_deallocation(SourceSpan loc, T* x) {
     send_debug_message(loc.start, build_debug_event(loc, "DESTRUCT", "null", std::to_string((MemoryAddress)x)));
 }
 
+template<typename T>
+T* __debug_resize(T* data, int size, int new_size) {
+    int to_copy = new_size < size ? new_size : size;
+    T* new_data = new T[new_size]{};
+    for(int i = 0; i < to_copy; i ++) {
+        new_data[i] = std::move(data[i]);
+    }
+    delete [] data;
+
+    send_debug_message(-1, build_debug_event({}, "REMAP", emit_structure_dynarray("HEAP", new_data, new_size), std::to_string((MemoryAddress)data), false));
+
+    return new_data;
+}
+
 // ==========================================
 // Section 11: Injection Macros
 // ==========================================
@@ -459,10 +499,13 @@ ScopedVariableTracker<isMain> name##_____debug;
 ScopeExitLogger ___debug_scope_exit____{start, end};
 
 #define __TRACE_STACK_DECL_INIT(loc, name) \
-name##_____debug.allocateAndConstruct(loc, #name, name, true)
+name##_____debug.allocateAndConstruct(loc, #name, name, true, true)
+
+#define __TRACE_STACK_DECL_INIT_NOBREAK(loc, name) \
+name##_____debug.allocateAndConstruct(loc, #name, name, true, false)
 
 #define __TRACE_STACK_DECL_NO_INIT(loc, name) \
-name##_____debug.allocateAndConstruct(loc, #name, name, false)
+name##_____debug.allocateAndConstruct(loc, #name, name, false, true)
 
 #define __TRACE_POST_CONSTRUCTION(loc, name) \
 (name##_____debug.postConstruct(loc, name), nullptr)
