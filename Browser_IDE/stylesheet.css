@@ -1028,6 +1028,13 @@ li.CodeMirror-hint-active {
   color: #9fff69;
 }
 
+.notification-icon-success {
+  color: #0F0;
+}
+
+.notification-icon-info {
+  color: #FFF;
+}
 
 /* execution environment canvas/hand execution scaling */
 .sk-column:has(#canvasContainer) {
@@ -1370,11 +1377,19 @@ html[data-theme="light"] .sk-body {
   color-scheme: light;
 }
 
+html[data-theme="light"] .sk-contents.sk-notification {
+  box-shadow: rgb(24 85 1 / 18%) 4px 4px 10px 0px;
+}
+
+html[data-theme="light"] #terminalOutputContainer .sk-contents {
+  box-shadow: inset 3px 6px 20px #1b6e0014;
+}
+
 html[data-theme="light"] .sk-contents {
   box-shadow: initial;
   border: initial;
   color: #333;
-  background-color: #fcfefb;
+  background-color: #f4f7f3;
 }
 
 html[data-theme="light"] .sk-header {
@@ -1394,4 +1409,13 @@ html[data-theme="light"] button:hover:enabled {
 
 html[data-theme="light"] .active-mini-tab {
     color: #258100;
+}
+
+
+html[data-theme="light"] .notification-icon-success {
+  color: #258100;
+}
+
+html[data-theme="light"] .notification-icon-info {
+  color: #444;
 }

@@ -1,13 +1,13 @@
 "use strict";
 
 const NotificationIcons = Object.freeze({
-  CONSTRUCTION:   { class: "bi-box-seam-fill", color: "#FFF" },
+  CONSTRUCTION:   { class: "bi-box-seam-fill notification-icon-info", color: "" },
   CRITICAL_ERROR:  { class: "bi-exclamation-octagon", color: "#F00" },
   ERROR:  { class: "bi-exclamation-triangle", color: "#F00" },
   WARNING: { class: "bi-exclamation-triangle", color: "#FA0" },
-  SUCCESS: { class: "bi-patch-check", color: "#0F0" },
-  INFO: { class: "bi-exclamation-circle", color: "#FFF" },
-  NONE: { class: "", color: "#FFF" }
+  SUCCESS: { class: "bi-patch-check notification-icon-success", color: "" },
+  INFO: { class: "bi-exclamation-circle notification-icon-info", color: "" },
+  NONE: { class: "notification-icon-info", color: "" }
 });
 
 // setup area for notifications to appear in
