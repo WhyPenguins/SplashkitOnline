@@ -325,6 +325,7 @@ class HandExecutionDrawing {
             $div("maintitle", ["Hand Execution"]),
             $div("section", [
                 this.stackContainer,
+                $div("", []),
                 this.heapContainer,
             ]),
             this.terminalOutputContainer

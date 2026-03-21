@@ -326,7 +326,7 @@ const astHandlers = {
 
                 editor.insert(offset, `(${init}`);
 
-                (node.inner ?? []).forEach(child => traverse(child, editor, context));
+                (node.inner ?? []).forEach(child => traverse(child, editor, context.markInner()));
 
                 let end = node.range.end.offset + node.range.end.tokLen;
                 editor.insert(end, `)`);
@@ -340,7 +340,7 @@ const astHandlers = {
             editor.insert(offset, ` = (${implicit ? noinit : init}`);
             if (implicit) editor.insert(offset, "{}");
 
-            (node.inner ?? []).forEach(child => traverse(child, editor, context));
+            (node.inner ?? []).forEach(child => traverse(child, editor, context.markInner()));
 
             let end = node.range.end.offset + node.range.end.tokLen;
             if (!implicit) end += 1;
@@ -385,6 +385,22 @@ const astHandlers = {
         editor.insert(node.range.begin.offset, `(FunctionCallPauseHack{${sourceSpan}}, __TRACE_EXPRESSION(${sourceSpan}, ${context.isInnerExpression},`);
         if (node.inner) node.inner.forEach(i => context.traverse(i, editor, context.markInner()));
         editor.insert(node.range.end.offset+node.range.end.tokLen, "))");
+    },
+
+    "DeclRefExpr": (node, editor, context) => {
+        if (context.isInnerExpression) return;
+
+        const span = editor.calculateSourceSpan(node);
+
+        editor.insert(node.range.begin.offset, `(__break(${span}), `);
+        editor.insert(node.range.end.offset + node.range.end.tokLen, `)`);
+    },
+
+    "CXXBoolLiteralExpr": (node, editor, context) => {
+        astHandlers["DeclRefExpr"](node, editor, context);
+    },
+    "CXXIntegerLiteralExpr": (node, editor, context) => {
+        astHandlers["DeclRefExpr"](node, editor, context);
     },
 
     "CXXMemberCallExpr": (node, editor, context) => {
@@ -482,6 +498,36 @@ const astHandlers = {
     "IfStmt": (node, editor, context) => handleControlFlow(node, editor, context),
     "ForStmt": (node, editor, context) => handleControlFlow(node, editor, context),
     "WhileStmt": (node, editor, context) => handleControlFlow(node, editor, context),
+    "SwitchStmt": (node, editor, context) => handleControlFlow(node, editor, context),
+
+    "CaseStmt": (node, editor, context, dontTrackScope) => {
+        const { traverse } = context;
+
+        if (!node.inner)
+            return;
+
+        if (node.inner.length > 1) {
+            let start = editor.calculateSourceSpan(node.inner[0]);
+
+            let pos = node.inner[1].range.begin.offset;
+            if (node.inner[1].kind == "NullStmt")
+                pos += 1;
+            editor.insert(pos, `__break(${start});`);
+
+        }
+
+        for (let v of node.inner.slice(1))
+            traverse(v, editor, context);
+    },
+    "DefaultStmt": (node, editor, context, dontTrackScope) => {
+        astHandlers["CaseStmt"](node, editor, context);
+    },
+
+    "BreakStmt":  (node, editor, context) => {
+        let start = editor.calculateSourceSpan(node);
+
+        editor.insert(node.range.begin.offset, `__break(${start});`);
+    },
 
     "CompoundStmt": (node, editor, context, dontTrackScope) => {
         const { traverse } = context;
@@ -613,6 +659,15 @@ const astHandlers = {
         }
         context.isMain = false;
     },
+
+    "FunctionTemplateDecl": (node, editor, context) => {
+        for (let t of node.inner) {
+            if (t.kind == "FunctionDecl") {
+                astHandlers["FunctionDecl"](t, editor, context);
+                break;
+            }
+        }
+    },
 };
 
 // Helper for CXXRecordDecl (called by CXXRecordDecl and ClassTemplateDecl)
@@ -640,7 +695,7 @@ function handleRecordDecl(node, templateParams, editor, context) {
 
     if (node.inner) {
         for (let i of node.inner){
-            if (i.kind == "CXXMethodDecl" || i.kind == "CXXConstructorDecl"){
+            if (i.kind == "CXXMethodDecl" || i.kind == "CXXConstructorDecl" || i.kind == "CXXDestructorDecl"){
                 traverse(i, editor, context);
             }
         }
@@ -867,7 +922,7 @@ async function preprocessDebugSourceCode(name, source, promiseChannel){
         }
         // Default recursion for container nodes
         else {
-            const lookInside = ["DeclStmt", "ExprWithCleanups", "CXXMethodDecl", "CXXConstructorDecl", "ImplicitCastExpr", "DoStmt", "MaterializeTemporaryExpr", "CXXBindTemporaryExpr", "CXXTryStmt", "CXXCatchStmt"];
+            const lookInside = ["DeclStmt", "ExprWithCleanups", "CXXMethodDecl", "CXXConstructorDecl", "CXXDestructorDecl", "ImplicitCastExpr", "DoStmt", "MaterializeTemporaryExpr", "CXXBindTemporaryExpr", "CXXTryStmt", "CXXCatchStmt"];
             if (lookInside.indexOf(node.kind) >= 0 && node.inner) {
                 node.inner.forEach(child => traverse(child, ed, ctx));
             }

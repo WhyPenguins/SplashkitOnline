@@ -1206,7 +1206,6 @@ li.CodeMirror-hint-active {
   flex-direction: column;
 }
 .handexecution .variable .col span {
-  padding: 0px 0.5em;
   text-align: center;
   display: block;
   line-height: 0.7em;

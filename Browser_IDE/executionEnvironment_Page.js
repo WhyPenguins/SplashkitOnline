@@ -24,6 +24,8 @@ function setTerminalInputAwaitState(awaiting) {
     }
     else
         terminalInputHint.innerText = ' '; // space to ensure the line is at least the right height
+
+    terminalInput.contentEditable = awaiting;
 }
 
 function resetTerminalInput(){

@@ -69,6 +69,10 @@ inline std::string to_json_value(char t) {
     return "\"'" + std::string(1, t) + "'\"";
 }
 
+inline std::string to_json_value(bool t) {
+    return "\"" + std::string(t?"True":"False") + "\"";
+}
+
 // Helper to clean up JSON lists (removes trailing comma).
 inline std::string trim_json_list(std::string in) {
     if (!in.empty() && in.back() == ',') {
@@ -289,7 +293,7 @@ inline std::string build_debug_event(SourceSpan loc, std::string event, std::str
         ",\"charStart\":" + to_json_value(loc.charStart) + ",\"charEnd\":" + to_json_value(loc.charEnd) +
         ",\"structure\":" + trim_json_list(structure) +
         ", \"val\":[" + trim_json_list(value) + "]" +
-        ", \"break\": " + to_json_value(break_value) + "}";
+        ", \"break\": " + (break_value?"1":"0") + "}";
 }
 
 // Some types get initialized such that if a single member
